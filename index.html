@@ -194,6 +194,54 @@
         add("GPS情報", "サポートされていません");
         document.getElementById("output").innerHTML = out.join("\n");
       }
+
+      // バッテリー情報
+      if (navigator.getBattery) {
+        try {
+          const battery = await navigator.getBattery();
+          add("バッテリー情報", JSON.stringify({
+            level: battery.level * 100 + "%",
+            charging: battery.charging ? "充電中" : "充電されていません",
+            chargingTime: battery.chargingTime,
+            dischargingTime: battery.dischargingTime
+          }, null, 2));
+        } catch (e) {
+          add("バッテリー情報", "取得失敗");
+        }
+      } else {
+        add("バッテリー情報", "サポートされていません");
+      }
+
+      // ネットワーク情報
+      if ('connection' in navigator) {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        add("ネットワーク情報", JSON.stringify({
+          effectiveType: connection.effectiveType,
+          downlink: connection.downlink,
+          rtt: connection.rtt
+        }, null, 2));
+      } else {
+        add("ネットワーク情報", "サポートされていません");
+      }
+
+      // 言語設定
+      add("言語設定", JSON.stringify({
+        language: navigator.language,
+        languages: navigator.languages
+      }, null, 2));
+
+      // 画面の向き
+      if (screen.orientation) {
+        add("画面の向き", JSON.stringify({
+          type: screen.orientation.type,
+          angle: screen.orientation.angle
+        }, null, 2));
+      } else {
+        add("画面の向き", "サポートされていません");
+      }
+
+      // 出力
+      document.getElementById("output").innerHTML = out.join("\n");
     }
 
     collectInfo();
