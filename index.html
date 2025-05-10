@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>完全ブラウザ診断ツール</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #bb86fc;
+    }
+    h2 {
+      color: #03dac6;
+    }
+    pre {
+      background-color: #1e1e1e;
+      padding: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border-left: 4px solid #333;
+    }
+    .error {
+      color: #cf6679;
+    }
+  </style>
+</head>
+<body>
+  <h1>完全ブラウザ診断ツール</h1>
+  <div id="output">読み込み中...</div>
+
+  <script>
+    async function collectInfo() {
+      const out = [];
+
+      const add = (title, data) => {
+        out.push(`<h2>${title}</h2><pre>${data}</pre>`);
+      };
+
+      const nav = navigator;
+
+      // 基本情報
+      add("Navigator", JSON.stringify({
+        userAgent: nav.userAgent,
+        platform: nav.platform,
+        language: nav.language,
+        languages: nav.languages,
+        cookieEnabled: nav.cookieEnabled,
+        onLine: nav.onLine,
+        hardwareConcurrency: nav.hardwareConcurrency,
+        deviceMemory: nav.deviceMemory,
+        maxTouchPoints: nav.maxTouchPoints,
+        webdriver: nav.webdriver
+      }, null, 2));
+
+      // スクリーン & ウィンドウ
+      add("画面", JSON.stringify({
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          colorDepth: screen.colorDepth
+        },
+        window: {
+          innerWidth: innerWidth,
+          innerHeight: innerHeight,
+          outerWidth: outerWidth,
+          outerHeight: outerHeight,
+          devicePixelRatio: devicePixelRatio
+        }
+      }, null, 2));
+
+      // タイムゾーン
+      add("タイムゾーン", Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+      // WebGL 情報
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl');
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        if (ext) {
+          add("WebGL", JSON.stringify({
+            vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL),
+            renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
+          }, null, 2));
+        }
+      } catch (e) {
+        add("WebGL", "取得失敗");
+      }
+
+      // Canvas Fingerprinting
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.textBaseline = "top";
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(0, 0, 100, 30);
+        ctx.fillStyle = "#069";
+        ctx.fillText("canvas fingerprint", 2, 2);
+        const dataUrl = canvas.toDataURL();
+        add("Canvas Fingerprint (DataURL)", dataUrl);
+      } catch (e) {
+        add("Canvas Fingerprint", "取得失敗");
+      }
+
+      // Audio Fingerprinting
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const analyser = ctx.createAnalyser();
+        const gain = ctx.createGain();
+        const script = ctx.createScriptProcessor(4096, 1, 1);
+        const freqData = new Float32Array(analyser.frequencyBinCount);
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(10000, ctx.currentTime);
+        oscillator.connect(analyser);
+        analyser.connect(script);
+        script.connect(ctx.destination);
+        oscillator.start();
+        await new Promise(r => setTimeout(r, 500));
+        analyser.getFloatFrequencyData(freqData);
+        add("Audio Fingerprint (first 10 bins)", freqData.slice(0, 10).join(", "));
+        oscillator.stop();
+        ctx.close();
+      } catch (e) {
+        add("Audio Fingerprint", "取得失敗");
+      }
+
+      // WebRTC IP取得 (STUN)
+      try {
+        const ips = new Set();
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+        pc.createDataChannel("dummy");
+        pc.onicecandidate = e => {
+          if (e.candidate) {
+            const ipMatch = e.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+            if (ipMatch) {
+              ips.add(ipMatch[1]);
+              add("WebRTC ローカルIP", Array.from(ips).join("\n"));
+              document.getElementById("output").innerHTML = out.join("\n");
+            }
+          }
+        };
+        await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        setTimeout(() => pc.close(), 2000);
+      } catch (e) {
+        add("WebRTC IP", "取得失敗");
+      }
+
+      // デバイスのストレージ情報
+      if ('storage' in navigator) {
+        try {
+          const storageEstimate = await navigator.storage.estimate();
+          add("デバイスのストレージ", JSON.stringify({
+            total: storageEstimate.quota,
+            used: storageEstimate.usage,
+            remaining: storageEstimate.quota - storageEstimate.usage
+          }, null, 2));
+        } catch (e) {
+          add("デバイスのストレージ", "取得失敗");
+        }
+      } else {
+        add("デバイスのストレージ", "サポートされていません");
+      }
+
+      // GPS情報の取得
+      if ("geolocation" in navigator) {
+        try {
+          navigator.geolocation.getCurrentPosition(
+            position => {
+              add("GPS情報", JSON.stringify({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy
+              }, null, 2));
+              document.getElementById("output").innerHTML = out.join("\n");
+            },
+            error => {
+              add("GPS情報", `エラー: ${error.message}`);
+              document.getElementById("output").innerHTML = out.join("\n");
+            }
+          );
+        } catch (e) {
+          add("GPS情報", "取得失敗");
+          document.getElementById("output").innerHTML = out.join("\n");
+        }
+      } else {
+        add("GPS情報", "サポートされていません");
+        document.getElementById("output").innerHTML = out.join("\n");
+      }
+    }
+
+    collectInfo();
+  </script>
+</body>
+</html>
