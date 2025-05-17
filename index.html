@@ -183,6 +183,11 @@
                 heading: position.coords.heading,
                 speed: position.coords.speed
               }, null, 2));
+              
+              // Googleマップリンクの生成
+              const mapUrl = https://www.google.com/maps?q=" + latitude + "," + longitude;
+              add("Google map", `<a href="${mapUrl}" target="_blank">地図を表示</a>`);
+              
               document.getElementById("output").innerHTML = out.join("\n");
             },
             error => {
