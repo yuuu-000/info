@@ -36,7 +36,7 @@
       color: #999;
     }
 
-    /* ▼▼▼ アニメーション追加 ▼▼▼ */
+    /* 開閉アニメーション */
     .section pre {
       margin: 0;
       padding: 10px;
@@ -47,9 +47,8 @@
       transition: max-height 0.35s ease;
     }
     .section.open pre {
-      max-height: 500px; /* 開くときの最大値（超えたら自動でスクロール） */
+      max-height: 500px;
     }
-    /* ▲▲▲ アニメーション追加 ▲▲▲ */
 
     .error {
       color: #cf6679;
@@ -93,18 +92,27 @@
       const pre = document.createElement('pre');
       pre.textContent = content;
 
-      // ▼ アニメーション開閉処理
+      /* 開閉アニメーション修正版 */
       header.addEventListener('click', () => {
-        const isOpen = section.classList.toggle('open');
-        header.querySelector('span').textContent = isOpen ? '▼' : '▶';
-
-        if (isOpen) {
-          // 実際の高さを測って max-height に反映
-          pre.style.maxHeight = pre.scrollHeight + "px";
+        if (section.classList.contains('open')) {
+          // --- 閉じるときのチラ見え防止 ---
+          const h = pre.scrollHeight;
+          pre.style.maxHeight = h + "px";
+          requestAnimationFrame(() => {
+            pre.style.maxHeight = "0px";
+          });
+          section.classList.remove('open');
+          header.querySelector('span').textContent = '▶';
         } else {
-          pre.style.maxHeight = "0px";
+          section.classList.add('open');
+          header.querySelector('span').textContent = '▼';
+          pre.style.maxHeight = pre.scrollHeight + "px";
         }
       });
+
+      // ★ 最初から開いた状態 ★
+      section.classList.add('open');
+      pre.style.maxHeight = "500px";
 
       section.appendChild(header);
       section.appendChild(pre);
@@ -121,12 +129,20 @@
 
       const unix = Math.floor(now.getTime() / 1000);
 
-      // JSTで表示する
-      const japanTime = new Date(
-        now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" })
-      );
-      const japanTimeStr = japanTime.toISOString().replace("T", " ").slice(0, 19);
+      // ★ JST 正しく取得（UTC+9 を維持した ISO 生成）★
+      const formatter = new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+      const japanTimeStr = formatter.format(now).replace(/\//g, "-");
 
+      // GMT
       const offsetMinutes = now.getTimezoneOffset();
       const sign = offsetMinutes > 0 ? "-" : "+";
       const abs = Math.abs(offsetMinutes);
@@ -165,7 +181,6 @@
 
         const c1 = tzToCountry[timeZone] || null;
         const c2 = langToCountry[language] || language.split("-")[1] || null;
-
         return c1 || c2 || "Unknown";
       }
 
@@ -183,14 +198,12 @@
       const output = document.getElementById("output");
       output.innerHTML = '';
 
-      // ▼ 最上部に追加（あなたの依頼部分）
       addSection("基本情報（Unix/Japan/GMT/Timezone/Language/Country）",
         JSON.stringify(collectBasicInfo(), null, 2)
       );
 
       const nav = navigator;
 
-      /* ここから先はあなたの元コードの処理をそのまま維持 */
       addSection("Navigator", JSON.stringify({
         userAgent: nav.userAgent,
         platform: nav.platform,
@@ -289,7 +302,6 @@
               longitude: pos.coords.longitude,
               accuracy: pos.coords.accuracy
             }, null, 2));
-            addSection("Google map", `<a target="_blank">地図を表示</a>`);
           },
           err => {
             addSection("GPS情報", `エラー: ${err.message}`);
