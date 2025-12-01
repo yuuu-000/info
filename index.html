@@ -89,7 +89,7 @@ pre {
 </head>
 <body>
 
-<h1>完全デバイス診断ツール</h1>
+<h1>Your Device Info</h1>
 <div id="output">
   <div class="spinner"></div>
 </div>
@@ -287,16 +287,6 @@ async function collectInfo() {
   output.innerHTML = '';
 
   addSection("基本情報", JSON.stringify(collectBasicInfo(), null, 2));
-  addSection("Navigator情報", JSON.stringify(getNavigatorInfo(), null, 2));
-  addSection("画面情報", JSON.stringify(getScreenInfo(), null, 2));
-  addSection("WebGL Fingerprint", JSON.stringify(getWebGLInfo(), null, 2));
-  addSection("Canvas Fingerprint (DataURL)", getCanvasFingerprint());
-  addSection("Audio Fingerprint (first 10 bins)", await getAudioFingerprint());
-  addSection("Battery情報", JSON.stringify(await getBatteryInfo(), null, 2));
-  addSection("Network情報", JSON.stringify(getNetworkInfo(), null, 2));
-  addSection("GPS情報", JSON.stringify(await getGeolocation(), null, 2));
-  addSection("Media Devices", JSON.stringify(await getMediaDevices(), null, 2));
-
   if ('userAgentData' in navigator) {
     try {
       const uaData = await navigator.userAgentData.getHighEntropyValues([
@@ -307,6 +297,15 @@ async function collectInfo() {
   } else {
     addSection("Navigator.userAgentData", "サポートされていません");
   }
+  addSection("Navigator情報", JSON.stringify(getNavigatorInfo(), null, 2));
+  addSection("GPS情報", JSON.stringify(await getGeolocation(), null, 2));
+  addSection("Battery情報", JSON.stringify(await getBatteryInfo(), null, 2));
+  addSection("Network情報", JSON.stringify(getNetworkInfo(), null, 2));
+  addSection("画面情報", JSON.stringify(getScreenInfo(), null, 2));
+  addSection("WebGL Fingerprint", JSON.stringify(getWebGLInfo(), null, 2));
+  addSection("Canvas Fingerprint (DataURL)", getCanvasFingerprint());
+  addSection("Audio Fingerprint (first 10 bins)", await getAudioFingerprint());
+  addSection("Media Devices", JSON.stringify(await getMediaDevices(), null, 2));
 }
 
 collectInfo();
