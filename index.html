@@ -1,346 +1,315 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>完全デバイス診断ツール</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>完全デバイス診断ツール</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    :root {
-      --bg: #121212;
-      --fg: #e0e0e0;
-      --accent: #b8f;
-      --card: #1e1e1e;
-      --border: #2a2a2a;
-    }
+<style>
+:root {
+  --bg: #121212;
+  --fg: #e0e0e0;
+  --accent: #b8f;
+  --card: #1e1e1e;
+  --border: #2a2a2a;
+}
 
-    body {
-      background-color: var(--bg);
-      color: var(--fg);
-      font-family: "Segoe UI", sans-serif;
-      padding: 20px;
-      line-height: 1.6;
-    }
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: "Segoe UI", sans-serif;
+  padding: 20px;
+  line-height: 1.6;
+}
 
-    h1 {
-      color: var(--accent);
-      text-align: center;
-      margin-bottom: 40px;
-      font-size: 2rem;
-      text-shadow: 0 0 10px #b8f5;
-    }
+h1 {
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2rem;
+  text-shadow: 0 0 6px #b8f5;
+}
 
-    /* --- セクションカード --- */
-    .section {
-      background: var(--card);
-      margin: 15px 0;
-      border-radius: 12px;
-      padding: 10px 16px;
-      border: 1px solid var(--border);
-      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
-      transition: transform 0.15s ease;
-    }
+.section {
+  background: var(--card);
+  margin: 15px 0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  transition: box-shadow 0.2s ease;
+}
 
-    .section:hover {
-      transform: translateY(-3px);
-    }
+.section:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
 
-    h2 {
-      font-size: 1.1rem;
-      margin: 0;
-      padding: 10px 0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--accent);
-      user-select: none;
-    }
+h2 {
+  font-size: 1.1rem;
+  margin: 0;
+  padding: 8px 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  color: var(--accent);
+}
 
-    h2 span {
-      transition: transform 0.25s ease;
-    }
+h2 span {
+  transition: transform 0.25s ease;
+}
 
-    .section.open h2 span {
-      transform: rotate(90deg);
-    }
+.section.open h2 span {
+  transform: rotate(90deg);
+}
 
-    pre {
-      margin: 0;
-      padding: 10px 0 15px;
-      white-space: pre-wrap;
-      word-break: break-all;
-      overflow: hidden;
-      max-height: 0;
-      transition: max-height 0.35s ease;
-    }
+pre {
+  margin: 0;
+  padding: 8px 0 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+  font-size: 0.9rem;
+}
 
-    /* スピナー */
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 4px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
-      margin: 40px auto;
-    }
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 40px auto;
+}
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 </head>
-
 <body>
-<h1>your device info</h1>
 
+<h1>完全デバイス診断ツール</h1>
 <div id="output">
   <div class="spinner"></div>
 </div>
 
 <script>
-  function createSection(title, content) {
-    const section = document.createElement('div');
-    section.className = 'section';
-
-    const header = document.createElement('h2');
-    header.innerHTML = `${title} <span>▶</span>`;
-
-    const pre = document.createElement('pre');
-    pre.textContent = content;
-
-    header.addEventListener('click', () => {
-      if (section.classList.contains('open')) {
-        const h = pre.scrollHeight;
-        pre.style.maxHeight = h + "px";
-        requestAnimationFrame(() => {
-          pre.style.maxHeight = "0px";
-        });
-        section.classList.remove('open');
-      } else {
-        section.classList.add('open');
-        pre.style.maxHeight = pre.scrollHeight + "px";
-      }
-    });
-
-    section.classList.add('open');
-    pre.style.maxHeight = "500px";
-
-    section.appendChild(header);
-    section.appendChild(pre);
-    return section;
-  }
-
-  function addSection(title, content) {
-    const section = createSection(title, content);
-    document.getElementById("output").appendChild(section);
-  }
-
-  function collectBasicInfo() {
-    const now = new Date();
-
-    const unix = Math.floor(now.getTime() / 1000);
-
-    const formatter = new Intl.DateTimeFormat("ja-JP", {
-      timeZone: "Asia/Tokyo",
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-      hour12: false
-    });
-    const japanTimeStr = formatter.format(now).replace(/\//g, "-");
-
-    /* ---- 修正：GMT → UTC に変更 ---- */
-    const offsetMinutes = now.getTimezoneOffset();
-    const sign = offsetMinutes > 0 ? "-" : "+";
-    const abs = Math.abs(offsetMinutes);
-    const utc = `UTC${sign}${String(Math.floor(abs/60)).padStart(2,"0")}:${String(abs%60).padStart(2,"0")}`;
-
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const lang = navigator.language;
-
-    function guessCountry() {
-      const tzToCountry = {
-        "Asia/Tokyo": "JP", "Asia/Seoul": "KR", "Asia/Shanghai": "CN",
-        "Asia/Taipei": "TW", "Asia/Hong_Kong": "HK", "Asia/Singapore": "SG",
-        "Europe/London": "GB", "Europe/Paris": "FR", "Europe/Berlin": "DE",
-        "America/New_York": "US", "America/Chicago": "US",
-        "America/Denver": "US", "America/Los_Angeles": "US"
-      };
-
-      const langToCountry = {
-        "ja": "JP", "ko": "KR", "zh": "CN", "zh-TW": "TW",
-        "zh-HK": "HK", "en-US": "US", "fr": "FR", "de": "DE"
-      };
-
-      const c1 = tzToCountry[tz] || null;
-      const c2 = langToCountry[lang] || lang.split("-")[1] || null;
-      return c1 || c2 || "Unknown";
-    }
-
-    return {
-      unix,
-      japanTime: japanTimeStr,
-      utc,
-      timezone: tz,
-      language: lang,
-      guessedCountry: guessCountry()
-    };
-  }
-
-  async function collectInfo() {
-    const output = document.getElementById("output");
-    output.innerHTML = '';
-
-    addSection("基本情報 (Unix / Japan / UTC / Timezone / Language / Country)",
-      JSON.stringify(collectBasicInfo(), null, 2)
-    );
-
-    const nav = navigator;
-    addSection("Navigator", JSON.stringify({
-      userAgent: nav.userAgent,
-      platform: nav.platform,
-      language: nav.language,
-      languages: nav.languages,
-      cookieEnabled: nav.cookieEnabled,
-      onLine: nav.onLine,
-      hardwareConcurrency: nav.hardwareConcurrency,
-      deviceMemory: nav.deviceMemory,
-      maxTouchPoints: nav.maxTouchPoints,
-      webdriver: nav.webdriver
-    }, null, 2));
-
-    if ('userAgentData' in navigator) {
-      try {
-        const uaData = await navigator.userAgentData.getHighEntropyValues([
-          "brands","mobile","platform","platformVersion","architecture","model","bitness"
-        ]);
-        addSection("Navigator.userAgentData", JSON.stringify(uaData, null, 2));
-      } catch {
-        addSection("Navigator.userAgentData", "取得失敗");
-      }
+function createSection(title, content) {
+  const section = document.createElement('div');
+  section.className = 'section';
+  const header = document.createElement('h2');
+  header.innerHTML = `${title} <span>▶</span>`;
+  const pre = document.createElement('pre');
+  pre.textContent = content;
+  header.addEventListener('click', () => {
+    if (section.classList.contains('open')) {
+      const h = pre.scrollHeight;
+      pre.style.maxHeight = h + "px";
+      requestAnimationFrame(() => pre.style.maxHeight = "0px");
+      section.classList.remove('open');
     } else {
-      addSection("Navigator.userAgentData", "サポートされていません");
+      section.classList.add('open');
+      pre.style.maxHeight = pre.scrollHeight + "px";
     }
+  });
+  section.classList.add('open');
+  pre.style.maxHeight = "500px";
+  section.appendChild(header);
+  section.appendChild(pre);
+  return section;
+}
 
-    addSection("画面", JSON.stringify({
-      screen: {
-        width: screen.width,
-        height: screen.height,
-        colorDepth: screen.colorDepth
-      },
-      window: {
-        innerWidth, innerHeight,
-        outerWidth, outerHeight,
-        devicePixelRatio
-      }
-    }, null, 2));
+function addSection(title, content) {
+  const section = createSection(title, content);
+  document.getElementById("output").appendChild(section);
+}
 
-    addSection("タイムゾーン", Intl.DateTimeFormat().resolvedOptions().timeZone);
+// --- 基本情報 ---
+function collectBasicInfo() {
+  const now = new Date();
+  const unix = Math.floor(now.getTime() / 1000);
+  const formatter = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
+  });
+  const japanTimeStr = formatter.format(now).replace(/\//g, "-");
+  const offsetMinutes = now.getTimezoneOffset();
+  const sign = offsetMinutes > 0 ? "-" : "+";
+  const abs = Math.abs(offsetMinutes);
+  const utc = `UTC${sign}${String(Math.floor(abs/60)).padStart(2,"0")}:${String(abs%60).padStart(2,"0")}`;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const lang = navigator.language;
 
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl');
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      if (ext) {
-        addSection("WebGL", JSON.stringify({
-          vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL),
-          renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
-        }, null, 2));
-      } else {
-        addSection("WebGL", "サポートされていません");
-      }
-    } catch {
-      addSection("WebGL", "取得失敗");
-    }
-
-    try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      ctx.textBaseline = "top";
-      ctx.font = "16px Arial";
-      ctx.fillStyle = "#f60";
-      ctx.fillRect(0, 0, 100, 30);
-      ctx.fillStyle = "#069";
-      ctx.fillText("canvas fingerprint", 2, 2);
-      addSection("Canvas Fingerprint (DataURL)", canvas.toDataURL());
-    } catch {
-      addSection("Canvas Fingerprint", "取得失敗");
-    }
-
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = ctx.createOscillator();
-      const analyser = ctx.createAnalyser();
-      const script = ctx.createScriptProcessor(4096, 1, 1);
-      const freqData = new Float32Array(analyser.frequencyBinCount);
-      oscillator.type = "triangle";
-      oscillator.frequency.setValueAtTime(10000, ctx.currentTime);
-      oscillator.connect(analyser);
-      analyser.connect(script);
-      script.connect(ctx.destination);
-      oscillator.start();
-      await new Promise(r => setTimeout(r, 500));
-      analyser.getFloatFrequencyData(freqData);
-      addSection("Audio Fingerprint (first 10 bins)", freqData.slice(0, 10).join(", "));
-      oscillator.stop();
-      ctx.close();
-    } catch {
-      addSection("Audio Fingerprint", "取得失敗");
-    }
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          addSection("GPS情報", JSON.stringify({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy
-          }, null, 2));
-        },
-        err => addSection("GPS情報", `エラー: ${err.message}`),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    }
-
-    if (navigator.getBattery) {
-      try {
-        const battery = await navigator.getBattery();
-        addSection("バッテリー情報", JSON.stringify({
-          level: battery.level * 100 + "%",
-          charging: battery.charging ? "充電中" : "未充電",
-          chargingTime: battery.chargingTime,
-          dischargingTime: battery.dischargingTime
-        }, null, 2));
-      } catch {
-        addSection("バッテリー情報", "取得失敗");
-      }
-    }
-
-    if ('connection' in navigator) {
-      const c = navigator.connection;
-      addSection("ネットワーク情報", JSON.stringify({
-        effectiveType: c.effectiveType,
-        downlink: c.downlink,
-        rtt: c.rtt
-      }, null, 2));
-    }
-
-    addSection("言語設定", JSON.stringify({
-      language: navigator.language,
-      languages: navigator.languages
-    }, null, 2));
-
-    if (screen.orientation) {
-      addSection("画面の向き", JSON.stringify({
-        type: screen.orientation.type,
-        angle: screen.orientation.angle
-      }, null, 2));
-    }
+  function guessCountry() {
+    const tzToCountry = {
+      "Asia/Tokyo":"JP","Asia/Seoul":"KR","Asia/Shanghai":"CN",
+      "Asia/Taipei":"TW","Asia/Hong_Kong":"HK","Asia/Singapore":"SG",
+      "Europe/London":"GB","Europe/Paris":"FR","Europe/Berlin":"DE",
+      "America/New_York":"US","America/Chicago":"US",
+      "America/Denver":"US","America/Los_Angeles":"US"
+    };
+    const langToCountry = {
+      "ja":"JP","ko":"KR","zh":"CN","zh-TW":"TW","zh-HK":"HK",
+      "en-US":"US","fr":"FR","de":"DE"
+    };
+    const c1 = tzToCountry[tz] || null;
+    const c2 = langToCountry[lang] || lang.split("-")[1] || null;
+    return c1 || c2 || "Unknown";
   }
 
-  collectInfo();
-</script>
+  return { unix, japanTime: japanTimeStr, utc, timezone: tz, language: lang, guessedCountry: guessCountry() };
+}
 
+// --- Navigator情報取得 ---
+function getNavigatorInfo() {
+  const nav = navigator;
+  const info = {};
+  for (const key in nav) {
+    if (typeof nav[key] !== "function") {
+      try { info[key] = nav[key]; } catch { info[key] = "取得不可"; }
+    }
+  }
+  return info;
+}
+
+// --- Screen/Window情報 ---
+function getScreenInfo() {
+  return {
+    screen: { width: screen.width, height: screen.height, colorDepth: screen.colorDepth },
+    window: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      outerWidth: window.outerWidth,
+      outerHeight: window.outerHeight,
+      devicePixelRatio: window.devicePixelRatio
+    },
+    orientation: screen.orientation ? { type: screen.orientation.type, angle: screen.orientation.angle } : "サポートされていません"
+  };
+}
+
+// --- WebGL Fingerprint ---
+function getWebGLInfo() {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return "サポートされていません";
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!ext) return "サポートされていません";
+    return { vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL), renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) };
+  } catch { return "取得失敗"; }
+}
+
+// --- Canvas Fingerprint ---
+function getCanvasFingerprint() {
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.textBaseline = "top";
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(0, 0, 100, 30);
+    ctx.fillStyle = "#069";
+    ctx.fillText("canvas fingerprint", 2, 2);
+    return canvas.toDataURL();
+  } catch { return "取得失敗"; }
+}
+
+// --- Audio Fingerprint ---
+async function getAudioFingerprint() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    const analyser = ctx.createAnalyser();
+    const script = ctx.createScriptProcessor(4096, 1, 1);
+    const freqData = new Float32Array(analyser.frequencyBinCount);
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(10000, ctx.currentTime);
+    oscillator.connect(analyser);
+    analyser.connect(script);
+    script.connect(ctx.destination);
+    oscillator.start();
+    await new Promise(r => setTimeout(r, 500));
+    analyser.getFloatFrequencyData(freqData);
+    oscillator.stop();
+    ctx.close();
+    return freqData.slice(0, 10).join(", ");
+  } catch { return "取得失敗"; }
+}
+
+// --- Battery情報 ---
+async function getBatteryInfo() {
+  if (!navigator.getBattery) return "サポートされていません";
+  try {
+    const battery = await navigator.getBattery();
+    return {
+      level: battery.level*100 + "%",
+      charging: battery.charging ? "充電中" : "未充電",
+      chargingTime: battery.chargingTime,
+      dischargingTime: battery.dischargingTime
+    };
+  } catch { return "取得失敗"; }
+}
+
+// --- Network情報 ---
+function getNetworkInfo() {
+  if (!navigator.connection) return "サポートされていません";
+  const c = navigator.connection;
+  return { effectiveType: c.effectiveType, downlink: c.downlink, rtt: c.rtt };
+}
+
+// --- GPS情報 ---
+function getGeolocation() {
+  if (!navigator.geolocation) return Promise.resolve("サポートされていません");
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+      err => resolve(`エラー: ${err.message}`),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
+
+// --- Media Devices ---
+async function getMediaDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return "サポートされていません";
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.map(d => ({ kind: d.kind, label: d.label || "非表示", deviceId: d.deviceId }));
+  } catch { return "取得失敗"; }
+}
+
+// --- 実行 ---
+async function collectInfo() {
+  const output = document.getElementById("output");
+  output.innerHTML = '';
+
+  addSection("基本情報", JSON.stringify(collectBasicInfo(), null, 2));
+  addSection("Navigator情報", JSON.stringify(getNavigatorInfo(), null, 2));
+  addSection("画面情報", JSON.stringify(getScreenInfo(), null, 2));
+  addSection("WebGL Fingerprint", JSON.stringify(getWebGLInfo(), null, 2));
+  addSection("Canvas Fingerprint (DataURL)", getCanvasFingerprint());
+  addSection("Audio Fingerprint (first 10 bins)", await getAudioFingerprint());
+  addSection("Battery情報", JSON.stringify(await getBatteryInfo(), null, 2));
+  addSection("Network情報", JSON.stringify(getNetworkInfo(), null, 2));
+  addSection("GPS情報", JSON.stringify(await getGeolocation(), null, 2));
+  addSection("Media Devices", JSON.stringify(await getMediaDevices(), null, 2));
+
+  if ('userAgentData' in navigator) {
+    try {
+      const uaData = await navigator.userAgentData.getHighEntropyValues([
+        "brands","mobile","platform","platformVersion","architecture","model","bitness"
+      ]);
+      addSection("Navigator.userAgentData", JSON.stringify(uaData, null, 2));
+    } catch { addSection("Navigator.userAgentData", "取得失敗"); }
+  } else {
+    addSection("Navigator.userAgentData", "サポートされていません");
+  }
+}
+
+collectInfo();
+</script>
 </body>
 </html>
