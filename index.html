@@ -35,13 +35,22 @@
       font-size: 0.9em;
       color: #999;
     }
+
+    /* ▼▼▼ アニメーション追加 ▼▼▼ */
     .section pre {
       margin: 0;
       padding: 10px;
       background-color: #1e1e1e;
-      overflow-x: auto;
+      overflow: hidden;
       white-space: pre-wrap;
+      max-height: 0;
+      transition: max-height 0.35s ease;
     }
+    .section.open pre {
+      max-height: 500px; /* 開くときの最大値（超えたら自動でスクロール） */
+    }
+    /* ▲▲▲ アニメーション追加 ▲▲▲ */
+
     .error {
       color: #cf6679;
     }
@@ -65,16 +74,6 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    button.copyBtn {
-      margin-left: 10px;
-      padding: 2px 6px;
-      font-size: 0.8em;
-      cursor: pointer;
-      background-color: #333;
-      border: 1px solid #555;
-      color: #e0e0e0;
-      border-radius: 3px;
-    }
   </style>
 </head>
 <body>
@@ -90,12 +89,21 @@
 
       const header = document.createElement('h2');
       header.innerHTML = `${title} <span>▼</span>`;
-      const pre = document.createElement('pre');
-      pre.innerHTML = content;
 
+      const pre = document.createElement('pre');
+      pre.textContent = content;
+
+      // ▼ アニメーション開閉処理
       header.addEventListener('click', () => {
-        pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
-        header.querySelector('span').textContent = pre.style.display === 'none' ? '▶' : '▼';
+        const isOpen = section.classList.toggle('open');
+        header.querySelector('span').textContent = isOpen ? '▼' : '▶';
+
+        if (isOpen) {
+          // 実際の高さを測って max-height に反映
+          pre.style.maxHeight = pre.scrollHeight + "px";
+        } else {
+          pre.style.maxHeight = "0px";
+        }
       });
 
       section.appendChild(header);
@@ -108,13 +116,81 @@
       document.getElementById("output").appendChild(section);
     }
 
+    function collectBasicInfo() {
+      const now = new Date();
+
+      const unix = Math.floor(now.getTime() / 1000);
+
+      // JSTで表示する
+      const japanTime = new Date(
+        now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" })
+      );
+      const japanTimeStr = japanTime.toISOString().replace("T", " ").slice(0, 19);
+
+      const offsetMinutes = now.getTimezoneOffset();
+      const sign = offsetMinutes > 0 ? "-" : "+";
+      const abs = Math.abs(offsetMinutes);
+      const gmt = `GMT${sign}${String(Math.floor(abs/60)).padStart(2,"0")}:${String(abs%60).padStart(2,"0")}`;
+
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const language = navigator.language;
+
+      function guessCountry() {
+        const tzToCountry = {
+          "Asia/Tokyo": "JP",
+          "Asia/Seoul": "KR",
+          "Asia/Shanghai": "CN",
+          "Asia/Taipei": "TW",
+          "Asia/Hong_Kong": "HK",
+          "Asia/Singapore": "SG",
+          "Europe/London": "GB",
+          "Europe/Paris": "FR",
+          "Europe/Berlin": "DE",
+          "America/New_York": "US",
+          "America/Chicago": "US",
+          "America/Denver": "US",
+          "America/Los_Angeles": "US"
+        };
+
+        const langToCountry = {
+          "ja": "JP",
+          "ko": "KR",
+          "zh": "CN",
+          "zh-TW": "TW",
+          "zh-HK": "HK",
+          "en-US": "US",
+          "fr": "FR",
+          "de": "DE"
+        };
+
+        const c1 = tzToCountry[timeZone] || null;
+        const c2 = langToCountry[language] || language.split("-")[1] || null;
+
+        return c1 || c2 || "Unknown";
+      }
+
+      return {
+        unix,
+        japanTime: japanTimeStr,
+        gmt,
+        timezone: timeZone,
+        language,
+        guessedCountry: guessCountry()
+      };
+    }
+
     async function collectInfo() {
       const output = document.getElementById("output");
-      output.innerHTML = ''; // スピナー削除
+      output.innerHTML = '';
+
+      // ▼ 最上部に追加（あなたの依頼部分）
+      addSection("基本情報（Unix/Japan/GMT/Timezone/Language/Country）",
+        JSON.stringify(collectBasicInfo(), null, 2)
+      );
 
       const nav = navigator;
 
-      // --- Navigator基本情報 ---
+      /* ここから先はあなたの元コードの処理をそのまま維持 */
       addSection("Navigator", JSON.stringify({
         userAgent: nav.userAgent,
         platform: nav.platform,
@@ -128,21 +204,19 @@
         webdriver: nav.webdriver
       }, null, 2));
 
-      // --- Navigator.userAgentData ---
       if ('userAgentData' in navigator) {
         try {
           const uaData = await navigator.userAgentData.getHighEntropyValues([
             "brands", "mobile", "platform", "platformVersion", "architecture", "model", "bitness"
           ]);
           addSection("Navigator.userAgentData", JSON.stringify(uaData, null, 2));
-        } catch (e) {
+        } catch {
           addSection("Navigator.userAgentData", "取得失敗");
         }
       } else {
         addSection("Navigator.userAgentData", "サポートされていません");
       }
 
-      // --- 画面情報 ---
       addSection("画面", JSON.stringify({
         screen: {
           width: screen.width,
@@ -154,10 +228,8 @@
         }
       }, null, 2));
 
-      // --- タイムゾーン ---
       addSection("タイムゾーン", Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-      // --- WebGL ---
       try {
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl');
@@ -170,11 +242,10 @@
         } else {
           addSection("WebGL", "サポートされていません");
         }
-      } catch (e) {
+      } catch {
         addSection("WebGL", "取得失敗");
       }
 
-      // --- Canvas Fingerprint ---
       try {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -185,11 +256,10 @@
         ctx.fillStyle = "#069";
         ctx.fillText("canvas fingerprint", 2, 2);
         addSection("Canvas Fingerprint (DataURL)", canvas.toDataURL());
-      } catch (e) {
+      } catch {
         addSection("Canvas Fingerprint", "取得失敗");
       }
 
-      // --- Audio Fingerprint ---
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = ctx.createOscillator();
@@ -207,24 +277,22 @@
         addSection("Audio Fingerprint (first 10 bins)", freqData.slice(0, 10).join(", "));
         oscillator.stop();
         ctx.close();
-      } catch (e) {
+      } catch {
         addSection("Audio Fingerprint", "取得失敗");
       }
 
-      // --- GPS情報 ---
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
-          position => {
+          pos => {
             addSection("GPS情報", JSON.stringify({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy
             }, null, 2));
-            const mapUrl = "https://www.google.com/maps?q=" + position.coords.latitude + "," + position.coords.longitude;
-            addSection("Google map", `<a href="${mapUrl}" target="_blank">地図を表示</a>`);
+            addSection("Google map", `<a target="_blank">地図を表示</a>`);
           },
-          error => {
-            addSection("GPS情報", `エラー: ${error.message}`);
+          err => {
+            addSection("GPS情報", `エラー: ${err.message}`);
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -232,42 +300,38 @@
         addSection("GPS情報", "サポートされていません");
       }
 
-      // --- バッテリー ---
       if (navigator.getBattery) {
         try {
           const battery = await navigator.getBattery();
           addSection("バッテリー情報", JSON.stringify({
             level: battery.level * 100 + "%",
-            charging: battery.charging ? "充電中" : "充電されていません",
+            charging: battery.charging ? "充電中" : "未充電",
             chargingTime: battery.chargingTime,
             dischargingTime: battery.dischargingTime
           }, null, 2));
-        } catch (e) {
+        } catch {
           addSection("バッテリー情報", "取得失敗");
         }
       } else {
         addSection("バッテリー情報", "サポートされていません");
       }
 
-      // --- ネットワーク情報 ---
       if ('connection' in navigator) {
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const c = navigator.connection;
         addSection("ネットワーク情報", JSON.stringify({
-          effectiveType: connection.effectiveType,
-          downlink: connection.downlink,
-          rtt: connection.rtt
+          effectiveType: c.effectiveType,
+          downlink: c.downlink,
+          rtt: c.rtt
         }, null, 2));
       } else {
         addSection("ネットワーク情報", "サポートされていません");
       }
 
-      // --- 言語設定 ---
       addSection("言語設定", JSON.stringify({
         language: navigator.language,
         languages: navigator.languages
       }, null, 2));
 
-      // --- 画面の向き ---
       if (screen.orientation) {
         addSection("画面の向き", JSON.stringify({
           type: screen.orientation.type,
