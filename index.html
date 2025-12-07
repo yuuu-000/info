@@ -2,313 +2,521 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>完全デバイス診断ツール</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device / Browser Info</title>
 
 <style>
-:root {
-  --bg: #121212;
-  --fg: #e0e0e0;
-  --accent: #b8f;
-  --card: #1e1e1e;
-  --border: #2a2a2a;
-}
+    :root {
+        --bg: #121212;
+        --fg: #e0e0e0;
+        --accent: #b8f;
+        --card: #1d1d1d;
+        --border: #2a2a2a;
+    }
 
-body {
-  background-color: var(--bg);
-  color: var(--fg);
-  font-family: "Segoe UI", sans-serif;
-  padding: 20px;
-  line-height: 1.6;
-}
+    body {
+        font-family: "Segoe UI", sans-serif;
+        padding: 10px;
+        background: var(--bg);
+        color: var(--fg);
+    }
+    h1 {
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: var(--accent);
+    }
+    h2 {
+        font-size: 18px;
+        margin-top: 30px;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid var(--accent);
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border-radius: 6px;
+        overflow: hidden;
+        color: var(--fg);
+        margin-bottom: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    th, td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+        font-size: 14px;
+    }
+    th {
+        width: 35%;
+        font-weight: bold;
+        background: #181818;
+        color: var(--accent);
+    }
+    td {
+        word-break: break-word;
+    }
+    tr:last-child td { border-bottom: none; }
 
-h1 {
-  color: var(--accent);
-  text-align: center;
-  margin-bottom: 30px;
-  font-size: 2rem;
-  text-shadow: 0 0 6px #b8f5;
-}
+    .description {
+        display: block;
+        font-size: 12px;
+        color: #aaa;
+        margin-top: 3px;
+    }
 
-.section {
-  background: var(--card);
-  margin: 15px 0;
-  border-radius: 10px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  transition: box-shadow 0.2s ease;
-}
-
-.section:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-h2 {
-  font-size: 1.1rem;
-  margin: 0;
-  padding: 8px 0;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  color: var(--accent);
-}
-
-h2 span {
-  transition: transform 0.25s ease;
-}
-
-.section.open h2 span {
-  transform: rotate(90deg);
-}
-
-pre {
-  margin: 0;
-  padding: 8px 0 12px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 5000px;
-  overflow: hidden;
-  transition: max-height 0.35s ease;
-  font-size: 0.9rem;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 4px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-  margin: 40px auto;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+    /* 横スクロール禁止と折り返し設定 */
+    .json-content, .long-data {
+        display: block;
+        padding: 5px;
+        margin-top: 5px;
+        background: #0d0d0d;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow-x: hidden; /* **横スクロール禁止** */
+        word-wrap: break-word;
+        white-space: pre-wrap; /* JSON整形を維持しつつ折り返し */
+    }
 </style>
+
 </head>
 <body>
 
-<h1>Your Device Info</h1>
-<div id="output">
-  <div class="spinner"></div>
-</div>
+<h1>Your Device & Browser Full Info</h1>
+
+<div id="tables"></div>
 
 <script>
-function createSection(title, content) {
-  const section = document.createElement('div');
-  section.className = 'section';
-  const header = document.createElement('h2');
-  header.innerHTML = `${title} <span>▶</span>`;
-  const pre = document.createElement('pre');
-  pre.textContent = content;
-  header.addEventListener('click', () => {
-    if (section.classList.contains('open')) {
-      const h = pre.scrollHeight;
-      pre.style.maxHeight = h + "px";
-      requestAnimationFrame(() => pre.style.maxHeight = "0px");
-      section.classList.remove('open');
+// ------------------------------------
+// 項目と日本語の説明、表示順序を定義
+// ------------------------------------
+const dataMap = {
+    // 接続・識別情報
+    "接続・時刻・IP情報": [
+        { key: "Local Time", desc: "ブラウザが認識するローカル時刻とタイムゾーン", type: "object" },
+        { key: "JST Time", desc: "日本標準時 (Asia/Tokyo) の時刻", type: "text" },
+        { key: "Global IP Address", desc: "Webサーバーから見たグローバルIPアドレス", type: "text" },
+        { key: "Local IP (WebRTC)", desc: "WebRTCを通じて取得される可能性のあるLAN内のローカルIPアドレス", type: "text" },
+        { key: "Document Referrer", desc: "このページに遷移する直前のページのURL (HTTPリファラ)", type: "text" },
+    ],
+    // ブラウザ・OS情報
+    "ブラウザ・OS情報": [
+        { key: "User Agent", desc: "ブラウザの識別文字列", type: "text" },
+        { key: "UserAgentData (Low)", desc: "低エントロピーのClient Hints情報（ブランド、OS、モバイルフラグ）", type: "object" },
+        { key: "UserAgentData (High)", desc: "高エントロピーのClient Hints情報（CPUアーキテクチャ、フルバージョンなど）", type: "object" },
+        { key: "Platform", desc: "OSプラットフォームの識別子", type: "text" },
+        { key: "Languages", desc: "ブラウザの優先言語設定リスト", type: "object" },
+        { key: "Online", desc: "ブラウザのネットワーク接続状態", type: "text" },
+        { key: "Do Not Track", desc: "DNT設定が有効かどうか", type: "text" },
+        { key: "WebDriver", desc: "自動テストツール(WebDriver)の使用検出フラグ", type: "text" },
+    ],
+    // ハードウェア・画面情報
+    "ハードウェア・画面情報": [
+        { key: "CPU Cores", desc: "論理CPUコア数 (`navigator.hardwareConcurrency`)", type: "text" },
+        { key: "Device Memory (GB)", desc: "クライアントデバイスのメモリ容量の概算 (GB)", type: "text" },
+        { key: "Screen", desc: "物理スクリーンと利用可能領域の解像度", type: "object" },
+        { key: "Window", desc: "ブラウザウィンドウの内部/外部サイズ（ピクセル）", type: "object" },
+        { key: "Pixel Ratio", desc: "CSSピクセルに対する物理ピクセルの比率 (DPI)", type: "text" },
+        { key: "Orientation", desc: "画面の向き (例: landscape-primary)", type: "text" },
+        { key: "Max Touch Points", desc: "同時にサポートされる最大タッチ点数", type: "text" },
+        { key: "Network", desc: "ネットワーク接続の詳細情報 (タイプ, 速度など)", type: "object" },
+    ],
+    // フィンガープリント関連
+    "フィンガープリント": [
+        { key: "Canvas Fingerprint", desc: "Canvas APIを用いたブラウザ固有の画像ハッシュ", type: "long-data" },
+        { key: "Audio Fingerprint", desc: "Web Audio APIを用いたデバイス固有のオーディオデータ", type: "long-data" },
+        { key: "WebGL", desc: "WebGLレンダラー情報 (ベンダー、レンダラー、バージョン)", type: "object" },
+        { key: "WebGPU", desc: "WebGPUアダプター情報 (名前、サポート機能)", type: "object" },
+        { key: "Fonts", desc: "システムにインストールされている特定のフォントリスト", type: "text" },
+    ],
+    // センサー・API・ストレージ
+    "センサー・API・ストレージ": [
+        { key: "Permissions", desc: "主要なAPI（GPS、マイク、カメラなど）の権限状態", type: "object" },
+        { key: "GPS", desc: "地理位置情報（緯度、経度、精度）の取得結果", type: "object" },
+        { key: "Media Devices", desc: "利用可能なオーディオ/ビデオ入出力デバイスの数", type: "object" },
+        { key: "Battery", desc: "バッテリー残量、充電状態", type: "object" },
+        { key: "Storage", desc: "推定される利用可能/利用済みのストレージ容量 (MB)", type: "object" },
+        { key: "API Support", desc: "Web Bluetooth, USB, NFC, Serialなどの最新APIサポート状況", type: "object" },
+    ],
+    // Navigator Full Dump
+    "Navigator Full Dump": [
+        { key: "Navigator Full Dump", desc: "navigatorオブジェクトの全プロパティダンプ (デバッグ用)", type: "object" },
+    ]
+};
+
+// ------------------------------------
+// 表追加関数
+// ------------------------------------
+function add(key, value, desc, type) {
+    const container = document.getElementById("tables");
+    const table = document.createElement("table");
+
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.innerHTML = `${key}<span class="description">${desc}</span>`;
+    const td = document.createElement("td");
+
+    if (type === "long-data") {
+        // フィンガープリントや非常に長い文字列 (水平スクロール禁止で折り返し)
+        const div = document.createElement("div");
+        div.className = "long-data";
+        div.textContent = value;
+        td.appendChild(div);
+    } else if (type === "object" && typeof value === "object" && value !== null && !Array.isArray(value)) {
+        // オブジェクト (水平スクロール禁止で折り返し)
+        const json = document.createElement("div");
+        json.className = "json-content";
+        json.textContent = JSON.stringify(value, null, 2);
+        td.appendChild(json);
+    } else if (Array.isArray(value)) {
+        // 配列 (Languagesなど)
+        td.textContent = value.join(', ');
     } else {
-      section.classList.add('open');
-      pre.style.maxHeight = pre.scrollHeight + "px";
+        // 通常テキスト
+        td.textContent = value;
     }
-  });
-  section.classList.add('open');
-  pre.style.maxHeight = "500px";
-  section.appendChild(header);
-  section.appendChild(pre);
-  return section;
+
+    tr.appendChild(th);
+    tr.appendChild(td);
+    table.appendChild(tr);
+
+    container.appendChild(table);
 }
 
-function addSection(title, content) {
-  const section = createSection(title, content);
-  document.getElementById("output").appendChild(section);
-}
+// ------------------------------------
+// リアルタイムデータ取得関数群
+// ------------------------------------
 
-// --- 基本情報 ---
-function collectBasicInfo() {
-  const now = new Date();
-  const unix = Math.floor(now.getTime() / 1000);
-  const formatter = new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false
-  });
-  const japanTimeStr = formatter.format(now).replace(/\//g, "-");
-  const offsetMinutes = now.getTimezoneOffset();
-  const sign = offsetMinutes > 0 ? "-" : "+";
-  const abs = Math.abs(offsetMinutes);
-  const utc = `UTC${sign}${String(Math.floor(abs/60)).padStart(2,"0")}:${String(abs%60).padStart(2,"0")}`;
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const lang = navigator.language;
+// 時刻情報 (localとJSTを分離して元の形式で取得)
+function getTimeInfo(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    const ms = String(d.getMilliseconds()).padStart(3,"0");
+    const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
 
-  function guessCountry() {
-    const tzToCountry = {
-      "Asia/Tokyo":"JP","Asia/Seoul":"KR","Asia/Shanghai":"CN",
-      "Asia/Taipei":"TW","Asia/Hong_Kong":"HK","Asia/Singapore":"SG",
-      "Europe/London":"GB","Europe/Paris":"FR","Europe/Berlin":"DE",
-      "America/New_York":"US","America/Chicago":"US",
-      "America/Denver":"US","America/Los_Angeles":"US"
-    };
-    const langToCountry = {
-      "ja":"JP","ko":"KR","zh":"CN","zh-TW":"TW","zh-HK":"HK",
-      "en-US":"US","fr":"FR","de":"DE"
-    };
-    const c1 = tzToCountry[tz] || null;
-    const c2 = langToCountry[lang] || lang.split("-")[1] || null;
-    return c1 || c2 || "Unknown";
-  }
+    // Local Time (元の形式)
+    const local = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${wd} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${ms}`;
+    const unix = (d.getTime()/1000).toFixed(3);
+    const offsetMin = d.getTimezoneOffset();
+    const offsetHour = -(offsetMin/60);
+    const offsetStr = (offsetHour>=0?"+":"")+offsetHour;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  return { unix, japanTime: japanTimeStr, utc, timezone: tz, language: lang, guessedCountry: guessCountry() };
-}
+    // JST Time (元の形式)
+    const jstObj = new Date(d.toLocaleString("en-US",{timeZone:"Asia/Tokyo"}));
+    const jms = String(jstObj.getMilliseconds()).padStart(3,"0");
+    const jwd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][jstObj.getDay()];
+    const jst = `${jstObj.getFullYear()}-${pad(jstObj.getMonth()+1)}-${pad(jstObj.getDate())} ${jwd} ${pad(jstObj.getHours())}:${pad(jstObj.getMinutes())}:${pad(jstObj.getSeconds())}.${jms}`;
 
-// --- Navigator情報取得 ---
-function getNavigatorInfo() {
-  const nav = navigator;
-  const info = {};
-  for (const key in nav) {
-    if (typeof nav[key] !== "function") {
-      try { info[key] = nav[key]; } catch { info[key] = "取得不可"; }
-    }
-  }
-  return info;
-}
-
-// --- Screen/Window情報 ---
-function getScreenInfo() {
-  return {
-    screen: { width: screen.width, height: screen.height, colorDepth: screen.colorDepth },
-    window: {
-      innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
-      outerWidth: window.outerWidth,
-      outerHeight: window.outerHeight,
-      devicePixelRatio: window.devicePixelRatio
-    },
-    orientation: screen.orientation ? { type: screen.orientation.type, angle: screen.orientation.angle } : "サポートされていません"
-  };
-}
-
-// --- WebGL Fingerprint ---
-function getWebGLInfo() {
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) return "サポートされていません";
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    if (!ext) return "サポートされていません";
-    return { vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL), renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) };
-  } catch { return "取得失敗"; }
-}
-
-// --- Canvas Fingerprint ---
-function getCanvasFingerprint() {
-  try {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    ctx.textBaseline = "top";
-    ctx.font = "16px Arial";
-    ctx.fillStyle = "#f60";
-    ctx.fillRect(0, 0, 100, 30);
-    ctx.fillStyle = "#069";
-    ctx.fillText("canvas fingerprint", 2, 2);
-    return canvas.toDataURL();
-  } catch { return "取得失敗"; }
-}
-
-// --- Audio Fingerprint ---
-async function getAudioFingerprint() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = ctx.createOscillator();
-    const analyser = ctx.createAnalyser();
-    const script = ctx.createScriptProcessor(4096, 1, 1);
-    const freqData = new Float32Array(analyser.frequencyBinCount);
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(10000, ctx.currentTime);
-    oscillator.connect(analyser);
-    analyser.connect(script);
-    script.connect(ctx.destination);
-    oscillator.start();
-    await new Promise(r => setTimeout(r, 500));
-    analyser.getFloatFrequencyData(freqData);
-    oscillator.stop();
-    ctx.close();
-    return freqData.slice(0, 10).join(", ");
-  } catch { return "取得失敗"; }
-}
-
-// --- Battery情報 ---
-async function getBatteryInfo() {
-  if (!navigator.getBattery) return "サポートされていません";
-  try {
-    const battery = await navigator.getBattery();
     return {
-      level: battery.level*100 + "%",
-      charging: battery.charging ? "充電中" : "未充電",
-      chargingTime: battery.chargingTime,
-      dischargingTime: battery.dischargingTime
+        localTime: {
+            "Local": local,
+            "TimeZone": timezone,
+            "OffsetHours": offsetStr,
+            "UnixTimestamp": unix
+        },
+        jstTime: jst
     };
-  } catch { return "取得失敗"; }
 }
 
-// --- Network情報 ---
-function getNetworkInfo() {
-  if (!navigator.connection) return "サポートされていません";
-  const c = navigator.connection;
-  return { effectiveType: c.effectiveType, downlink: c.downlink, rtt: c.rtt };
-}
-
-// --- GPS情報 ---
-function getGeolocation() {
-  if (!navigator.geolocation) return Promise.resolve("サポートされていません");
-  return new Promise(resolve => {
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-      err => resolve(`エラー: ${err.message}`),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  });
-}
-
-// --- Media Devices ---
-async function getMediaDevices() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return "サポートされていません";
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.map(d => ({ kind: d.kind, label: d.label || "非表示", deviceId: d.deviceId }));
-  } catch { return "取得失敗"; }
-}
-
-// --- 実行 ---
-async function collectInfo() {
-  const output = document.getElementById("output");
-  output.innerHTML = '';
-
-  addSection("基本情報", JSON.stringify(collectBasicInfo(), null, 2));
-  if ('userAgentData' in navigator) {
+// Global IP
+async function getGlobalIP() {
     try {
-      const uaData = await navigator.userAgentData.getHighEntropyValues([
-        "brands","mobile","platform","platformVersion","architecture","model","bitness"
-      ]);
-      addSection("Navigator.userAgentData", JSON.stringify(uaData, null, 2));
-    } catch { addSection("Navigator.userAgentData", "取得失敗"); }
-  } else {
-    addSection("Navigator.userAgentData", "サポートされていません");
-  }
-  addSection("Navigator情報", JSON.stringify(getNavigatorInfo(), null, 2));
-  addSection("GPS情報", JSON.stringify(await getGeolocation(), null, 2));
-  addSection("Battery情報", JSON.stringify(await getBatteryInfo(), null, 2));
-  addSection("Network情報", JSON.stringify(getNetworkInfo(), null, 2));
-  addSection("画面情報", JSON.stringify(getScreenInfo(), null, 2));
-  addSection("WebGL Fingerprint", JSON.stringify(getWebGLInfo(), null, 2));
-  addSection("Canvas Fingerprint (DataURL)", getCanvasFingerprint());
-  addSection("Audio Fingerprint (first 10 bins)", await getAudioFingerprint());
-  addSection("Media Devices", JSON.stringify(await getMediaDevices(), null, 2));
+        const response = await fetch("https://api.ipify.org?format=json");
+        const data = await response.json();
+        return data.ip;
+    }
+    catch { return "取得失敗/CORSブロック"; }
 }
 
-collectInfo();
+// Local IP (WebRTC)
+async function getLocalIP() {
+    return new Promise(resolve => {
+        try {
+            const ipSet = new Set();
+            const pc = new RTCPeerConnection({ iceServers: [{urls: "stun:stun.l.google.com:19302"}] });
+            pc.createDataChannel("");
+            pc.createOffer().then(o => pc.setLocalDescription(o));
+            pc.onicecandidate = e => {
+                if (!e.candidate) {
+                    resolve([...ipSet].join(', ') || "検出なし");
+                    return;
+                }
+                // 192.168.x.x や 10.x.x.x などのプライベートIPアドレスのみをフィルタリング
+                const m = /(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})/.exec(e.candidate.candidate);
+                if (m) ipSet.add(m[1]);
+            };
+            // タイムアウト処理
+            setTimeout(() => {
+                pc.close();
+                resolve([...ipSet].join(', ') || "検出なし (タイムアウト)");
+            }, 1000);
+        } catch { resolve("非対応/エラー"); }
+    });
+}
+
+// UA-CH High Entropy
+async function getUAHigh() {
+    try {
+        if (!navigator.userAgentData || !navigator.userAgentData.getHighEntropyValues) return "非対応";
+        const hints = ["architecture","model","platformVersion","uaFullVersion","bitness","fullVersionList","formFactor"];
+        return await navigator.userAgentData.getHighEntropyValues(hints);
+    } catch { return "非対応/権限不足"; }
+}
+
+// WebGL
+function getWebGL() {
+    try {
+        const c = document.createElement("canvas");
+        const gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+        if (!gl) return "非対応";
+        return {
+            Vendor: gl.getParameter(gl.VENDOR),
+            Renderer: gl.getParameter(gl.RENDERER),
+            Version: gl.getParameter(gl.VERSION)
+        };
+    } catch { return "取得失敗"; }
+}
+
+// WebGPU
+async function getWebGPU() {
+    try {
+        if (!navigator.gpu) return "非対応";
+        const ad = await navigator.gpu.requestAdapter();
+        return {
+            name: ad.name,
+            features: [...ad.features]
+        };
+    } catch { return "取得失敗/非対応"; }
+}
+
+// Canvas Fingerprint
+function canvasFP() {
+    try {
+        const c = document.createElement("canvas");
+        c.width = 300; c.height = 60;
+        const ctx = c.getContext("2d");
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(125,1,62,20);
+        ctx.fillStyle = "#069";
+        ctx.font = "18px Arial";
+        ctx.fillText("canvas-fp-test (GM)", 2, 40);
+        return c.toDataURL();
+    } catch { return "非対応"; }
+}
+
+// Audio Fingerprint
+async function getAudioFP() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const analyser = ctx.createAnalyser();
+        const gain = ctx.createGain();
+
+        analyser.fftSize = 2048;
+        gain.gain.value = 0;
+
+        osc.frequency.value = 10000;
+        osc.type = "triangle";
+        osc.connect(analyser).connect(gain).connect(ctx.destination);
+
+        const freq = new Float32Array(analyser.frequencyBinCount);
+
+        osc.start();
+        await new Promise(r => setTimeout(r, 500));
+        analyser.getFloatFrequencyData(freq);
+        osc.stop();
+        await ctx.close();
+
+        const dataStr = freq.slice(0, 10).map(v => v.toFixed(4)).join(',');
+        return `SampleRate:${ctx.sampleRate}, Data:[${dataStr}]`;
+    } catch { return "非対応/エラー"; }
+}
+
+// Fonts
+function detectFonts() {
+    const fonts = ["Arial","Verdana","Times New Roman","Courier New","Georgia","Comic Sans MS","Impact","Trebuchet MS","Helvetica","Calibri","MS Gothic","Meiryo","Noto Sans CJK JP"];
+    const base = ["serif","sans-serif","monospace"];
+    const c = document.createElement("canvas");
+    const ctx = c.getContext("2d");
+    const txt = "mmmmmmmmmwwwwwww";
+    const size = "72px";
+
+    const baseW = {};
+    base.forEach(f => { ctx.font = `${size} ${f}`; baseW[f] = ctx.measureText(txt).width; });
+
+    const detected = [];
+    for (const f of fonts) {
+        for (const b of base) {
+            ctx.font = `${size} '${f}',${b}`;
+            if (ctx.measureText(txt).width !== baseW[b] && !detected.includes(f)) {
+                detected.push(f);
+            }
+        }
+    }
+    return detected.join(', ') || "検出なし";
+}
+
+// Battery
+async function getBattery() {
+    try {
+        if (!navigator.getBattery) return "非対応";
+        const b = await navigator.getBattery();
+        return {
+            Level: Math.round(b.level * 100) + "%",
+            Charging: b.charging ? "Yes" : "No",
+            ChargingTime: b.chargingTime === Infinity ? "Infinity" : `${b.chargingTime}秒`,
+            DischargingTime: b.dischargingTime === Infinity ? "Infinity" : `${b.dischargingTime}秒`
+        };
+    } catch { return "非対応/権限エラー"; }
+}
+
+// Storage
+async function getStorage() {
+    try {
+        if (!navigator.storage || !navigator.storage.estimate) return "非対応";
+        const estimate = await navigator.storage.estimate();
+        const formatBytes = (bytes) => (bytes / 1024 / 1024).toFixed(2) + "MB";
+
+        return {
+            Usage: formatBytes(estimate.usage),
+            Quota: formatBytes(estimate.quota)
+        };
+    }
+    catch { return "非対応/エラー"; }
+}
+
+// Permissions
+async function getPermissions() {
+    const list = ["geolocation","notifications","microphone","camera","clipboard-read","clipboard-write"];
+    const result = {};
+    for (const p of list) {
+        try {
+            result[p] = (await navigator.permissions.query({name:p})).state;
+        }
+        catch {
+            result[p] = "非対応/エラー";
+        }
+    }
+    return result;
+}
+
+// GPS
+async function getGPS() {
+    if (!navigator.geolocation) return "非対応";
+    return new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({
+                Latitude: pos.coords.latitude.toFixed(6),
+                Longitude: pos.coords.longitude.toFixed(6),
+                Accuracy: `${pos.coords.accuracy}m`
+            }),
+            err => resolve({ Error: `コード ${err.code}`, Message: err.message }),
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+    });
+}
+
+// Media Devices
+async function getMediaDevices() {
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return "非対応";
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const counts = devices.reduce((acc, dev) => {
+            acc[dev.kind] = (acc[dev.kind] || 0) + 1;
+            return acc;
+        }, {});
+
+        return {
+            AudioInput_マイク: counts["audioinput"] || 0,
+            AudioOutput_スピーカー: counts["audiooutput"] || 0,
+            VideoInput_カメラ: counts["videoinput"] || 0,
+            TotalDevices: devices.length
+        };
+    }
+    catch (e) {
+        return "非対応/権限不足 (enumerateDevices)";
+    }
+}
+
+// Navigator Full Dump
+async function getNavigatorFull() {
+    const out = {};
+    for (const k in navigator) {
+        try { out[k] = typeof navigator[k] === "function" ? `function() [${k}]` : navigator[k]; }
+        catch { out[k] = "取得不可"; }
+    }
+    return out;
+}
+
+// ------------------------------------
+// メイン処理
+// ------------------------------------
+async function start() {
+    const dynamicData = {};
+    const time = getTimeInfo();
+
+    // データの収集
+    dynamicData["Local Time"] = time.localTime;
+    dynamicData["JST Time"] = time.jstTime;
+    dynamicData["Global IP Address"] = await getGlobalIP();
+    dynamicData["Local IP (WebRTC)"] = await getLocalIP();
+    dynamicData["Document Referrer"] = document.referrer || "直接アクセス";
+    dynamicData["User Agent"] = navigator.userAgent;
+    dynamicData["UserAgentData (Low)"] = navigator.userAgentData || "非対応";
+    dynamicData["UserAgentData (High)"] = await getUAHigh();
+    dynamicData["Platform"] = navigator.platform;
+    dynamicData["Languages"] = navigator.languages;
+    dynamicData["Online"] = navigator.onLine ? "✔ True" : "❌ False";
+    dynamicData["Do Not Track"] = navigator.doNotTrack || "設定なし/非対応";
+    dynamicData["WebDriver"] = navigator.webdriver ? "✔ True (自動化ツール使用中)" : "❌ False";
+    dynamicData["CPU Cores"] = navigator.hardwareConcurrency || "非対応";
+    dynamicData["Device Memory (GB)"] = navigator.deviceMemory || "非対応";
+    dynamicData["Screen"] = { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight, pixelDepth: screen.pixelDepth };
+    dynamicData["Window"] = { inner: [innerWidth, innerHeight], outer: [outerWidth, outerHeight] };
+    dynamicData["Pixel Ratio"] = devicePixelRatio;
+    dynamicData["Orientation"] = screen.orientation?.type || "非対応";
+    dynamicData["Max Touch Points"] = navigator.maxTouchPoints;
+    dynamicData["Network"] = navigator.connection || "非対応";
+    dynamicData["Canvas Fingerprint"] = canvasFP();
+    dynamicData["Audio Fingerprint"] = await getAudioFP();
+    dynamicData["WebGL"] = getWebGL();
+    dynamicData["WebGPU"] = await getWebGPU();
+    dynamicData["Fonts"] = detectFonts();
+    dynamicData["Permissions"] = await getPermissions();
+    dynamicData["GPS"] = await getGPS();
+    dynamicData["Media Devices"] = await getMediaDevices();
+    dynamicData["Battery"] = await getBattery();
+    dynamicData["Storage"] = await getStorage();
+    dynamicData["API Support"] = {
+        Bluetooth: !!navigator.bluetooth, USB: !!navigator.usb, NFC: "NDEFReader" in window,
+        HID: !!navigator.hid, Serial: !!navigator.serial, Share: !!navigator.share,
+        Clipboard: !!navigator.clipboard, ServiceWorker: !!navigator.serviceWorker,
+        WebRTC: !!window.RTCPeerConnection
+    };
+    dynamicData["Navigator Full Dump"] = await getNavigatorFull();
+
+
+    // 画面に表示
+    const container = document.getElementById("tables");
+    for (const section in dataMap) {
+        const h2 = document.createElement("h2");
+        h2.textContent = `🔹 ${section}`;
+        container.appendChild(h2);
+
+        dataMap[section].forEach(item => {
+            const value = dynamicData[item.key];
+            add(item.key, value, item.desc, item.type);
+        });
+    }
+}
+
+start();
 </script>
+
 </body>
 </html>
