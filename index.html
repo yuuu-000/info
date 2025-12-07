@@ -91,13 +91,12 @@
 
 <script>
 // ------------------------------------
-// 項目と日本語の説明、表示順序を定義
+// 項目と日本語の説明、表示順序を定義 (Network項目を詳細に展開)
 // ------------------------------------
 const dataMap = {
     // 接続・識別情報
     "接続・時刻・IP情報": [
-        { key: "Local Time", desc: "ブラウザが認識するローカル時刻とタイムゾーン", type: "object" },
-        { key: "JST Time", desc: "日本標準時 (Asia/Tokyo) の時刻", type: "text" },
+        { key: "time", desc: "UNIX、ローカル時刻、JST、タイムゾーン、時差", type: "object" },
         { key: "Global IP Address", desc: "Webサーバーから見たグローバルIPアドレス", type: "text" },
         { key: "Local IP (WebRTC)", desc: "WebRTCを通じて取得される可能性のあるLAN内のローカルIPアドレス", type: "text" },
         { key: "Document Referrer", desc: "このページに遷移する直前のページのURL (HTTPリファラ)", type: "text" },
@@ -109,7 +108,7 @@ const dataMap = {
         { key: "UserAgentData (High)", desc: "高エントロピーのClient Hints情報（CPUアーキテクチャ、フルバージョンなど）", type: "object" },
         { key: "Platform", desc: "OSプラットフォームの識別子", type: "text" },
         { key: "Languages", desc: "ブラウザの優先言語設定リスト", type: "object" },
-        { key: "Online", desc: "ブラウザのネットワーク接続状態", type: "text" },
+        // NOTE: Online Status は Network 詳細とまとめて「ハードウェア・画面情報」に移動するため、ここでは削除
         { key: "Do Not Track", desc: "DNT設定が有効かどうか", type: "text" },
         { key: "WebDriver", desc: "自動テストツール(WebDriver)の使用検出フラグ", type: "text" },
     ],
@@ -122,7 +121,14 @@ const dataMap = {
         { key: "Pixel Ratio", desc: "CSSピクセルに対する物理ピクセルの比率 (DPI)", type: "text" },
         { key: "Orientation", desc: "画面の向き (例: landscape-primary)", type: "text" },
         { key: "Max Touch Points", desc: "同時にサポートされる最大タッチ点数", type: "text" },
-        { key: "Network", desc: "ネットワーク接続の詳細情報 (タイプ, 速度など)", type: "object" },
+        // Network Information APIの詳細項目をここに展開
+        { key: "Network Type", desc: "ネットワーク接続の物理的タイプ (例: wifi, cellular)", type: "text" },
+        { key: "Effective Type", desc: "実効的なネットワーク種別 (例: 4g, 3g)", type: "text" },
+        { key: "Downlink", desc: "推定される下り回線速度 (Mbps)", type: "text" },
+        { key: "Round-Trip Time (RTT)", desc: "推定される往復時間 (ms)", type: "text" },
+        { key: "Save Data Mode", desc: "データセーバーモードの有効/無効", type: "text" },
+        { key: "Online Status", desc: "ブラウザのネットワーク接続状態", type: "text" },
+        // NOTE: 元の { key: "Network", desc: "...", type: "object" } は削除
     ],
     // フィンガープリント関連
     "フィンガープリント": [
@@ -197,30 +203,34 @@ function getTimeInfo(){
     const ms = String(d.getMilliseconds()).padStart(3,"0");
     const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
 
-    // Local Time (元の形式)
+    // Local Time
     const local = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${wd} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${ms}`;
     const unix = (d.getTime()/1000).toFixed(3);
     const offsetMin = d.getTimezoneOffset();
     const offsetHour = -(offsetMin/60);
-    const offsetStr = (offsetHour>=0?"+":"")+offsetHour;
+    const offsetStr = (offsetHour>=0?"UTC+":"UTC")+offsetHour;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // JST Time (元の形式)
+    // JST Time (元の形式に近づける)
     const jstObj = new Date(d.toLocaleString("en-US",{timeZone:"Asia/Tokyo"}));
-    const jms = String(jstObj.getMilliseconds()).padStart(3,"0");
-    const jwd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][jstObj.getDay()];
-    const jst = `${jstObj.getFullYear()}-${pad(jstObj.getMonth()+1)}-${pad(jstObj.getDate())} ${jwd} ${pad(jstObj.getHours())}:${pad(jstObj.getMinutes())}:${pad(jstObj.getSeconds())}.${jms}`;
+    const jms = String(d.getMilliseconds()).padStart(3,"0");
+    // JSTの曜日を取得するためにJSTオブジェクトを使用
+    const jstWd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][jstObj.getDay()];
+    // JSTの時刻はtoLocaleStringで取得したオブジェクトから構築
+    const jst = `${jstObj.getFullYear()}-${pad(jstObj.getMonth()+1)}-${pad(jstObj.getDate())} ${jstWd} ${pad(jstObj.getHours())}:${pad(jstObj.getMinutes())}:${pad(jstObj.getSeconds())}.${jms}`;
 
     return {
+        // 以前のリクエストで統合を維持した形式
         localTime: {
+            "UnixTimestamp": unix,
             "Local": local,
+            "JST": jst,
             "TimeZone": timezone,
-            "OffsetHours": offsetStr,
-            "UnixTimestamp": unix
-        },
-        jstTime: jst
+            "OffsetHours": offsetStr
+        }
     };
 }
+
 
 // Global IP
 async function getGlobalIP() {
@@ -245,7 +255,7 @@ async function getLocalIP() {
                     resolve([...ipSet].join(', ') || "検出なし");
                     return;
                 }
-                // 192.168.x.x や 10.x.x.x などのプライベートIPアドレスのみをフィルタリング
+                // プライベートIPアドレスのみをフィルタリング
                 const m = /(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})/.exec(e.candidate.candidate);
                 if (m) ipSet.add(m[1]);
             };
@@ -459,19 +469,21 @@ async function getNavigatorFull() {
 async function start() {
     const dynamicData = {};
     const time = getTimeInfo();
+    const network = navigator.connection; // Network Information API
 
     // データの収集
-    dynamicData["Local Time"] = time.localTime;
-    dynamicData["JST Time"] = time.jstTime;
+    // 時刻情報 (JST統合を維持)
+    dynamicData["time"] = time.localTime;
+
     dynamicData["Global IP Address"] = await getGlobalIP();
     dynamicData["Local IP (WebRTC)"] = await getLocalIP();
     dynamicData["Document Referrer"] = document.referrer || "直接アクセス";
+
     dynamicData["User Agent"] = navigator.userAgent;
     dynamicData["UserAgentData (Low)"] = navigator.userAgentData || "非対応";
     dynamicData["UserAgentData (High)"] = await getUAHigh();
     dynamicData["Platform"] = navigator.platform;
     dynamicData["Languages"] = navigator.languages;
-    dynamicData["Online"] = navigator.onLine ? "✔ True" : "❌ False";
     dynamicData["Do Not Track"] = navigator.doNotTrack || "設定なし/非対応";
     dynamicData["WebDriver"] = navigator.webdriver ? "✔ True (自動化ツール使用中)" : "❌ False";
     dynamicData["CPU Cores"] = navigator.hardwareConcurrency || "非対応";
@@ -481,7 +493,24 @@ async function start() {
     dynamicData["Pixel Ratio"] = devicePixelRatio;
     dynamicData["Orientation"] = screen.orientation?.type || "非対応";
     dynamicData["Max Touch Points"] = navigator.maxTouchPoints;
-    dynamicData["Network"] = navigator.connection || "非対応";
+
+    // ネットワーク詳細情報の取得と分解 (修正/強化部分)
+    dynamicData["Online Status"] = navigator.onLine ? "✔ True" : "❌ False";
+    if (network) {
+        dynamicData["Network Type"] = network.type || "unknown";
+        dynamicData["Effective Type"] = network.effectiveType || "unknown";
+        dynamicData["Downlink"] = network.downlink !== undefined ? `${network.downlink} Mbps` : "非対応";
+        dynamicData["Round-Trip Time (RTT)"] = network.rtt !== undefined ? `${network.rtt} ms` : "非対応";
+        dynamicData["Save Data Mode"] = network.saveData ? "✔ True" : "❌ False";
+    } else {
+        dynamicData["Network Type"] = "非対応 (Network Information API)";
+        dynamicData["Effective Type"] = "非対応 (Network Information API)";
+        dynamicData["Downlink"] = "非対応 (Network Information API)";
+        dynamicData["Round-Trip Time (RTT)"] = "非対応 (Network Information API)";
+        dynamicData["Save Data Mode"] = "非対応 (Network Information API)";
+    }
+
+    // 他のデータ
     dynamicData["Canvas Fingerprint"] = canvasFP();
     dynamicData["Audio Fingerprint"] = await getAudioFP();
     dynamicData["WebGL"] = getWebGL();
@@ -505,10 +534,29 @@ async function start() {
     const container = document.getElementById("tables");
     for (const section in dataMap) {
         const h2 = document.createElement("h2");
-        h2.textContent = `🔹 ${section}`;
+        h2.textContent = `🔹 ${section}`; // ユーザーが提供した h2.textContent の形式を完全に維持
         container.appendChild(h2);
 
         dataMap[section].forEach(item => {
+
+            // Network Information APIのプロパティは、ハードウェア・画面情報に統合して表示する
+            const isNetworkDetailKey = ["Network Type", "Effective Type", "Downlink", "Round-Trip Time (RTT)", "Save Data Mode", "Online Status"].includes(item.key);
+
+            // 以下のキーは、他の場所へ移動・展開したため、ここではスキップ
+            if (item.key === "Network" || item.key === "Online") {
+                return;
+            }
+
+            // Network Detail のキーが「ハードウェア・画面情報」セクションにある場合、表示
+            if (section === "ハードウェア・画面情報" && isNetworkDetailKey) {
+                 add(item.key, dynamicData[item.key], item.desc, item.type);
+                 return;
+            } else if (section !== "ハードウェア・画面情報" && isNetworkDetailKey) {
+                 // 他のセクションに Network Detail キーが残っている場合（通常起こらないが念のため）、スキップ
+                 return;
+            }
+
+            // それ以外の通常の項目を表示
             const value = dynamicData[item.key];
             add(item.key, value, item.desc, item.type);
         });
