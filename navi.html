@@ -43,6 +43,12 @@
             word-wrap: break-word;
         }
 
+        th:not(:first-child),
+        td:not(:first-child) {
+            width: calc(100% - 330px);
+            word-wrap: break-word;
+        }
+
         th {
             background: #333;
             font-weight: 600;
@@ -111,7 +117,7 @@
             return value;
         }
 
-       async function updateUA() {
+        async function updateUA() {
             let highUAData = {};
             if (navigator.userAgentData?.getHighEntropyValues) {
                 highUAData = await navigator.userAgentData.getHighEntropyValues([
@@ -189,7 +195,7 @@
         }
 
         updateUA();
-        setInterval(updateUA, 1500);
+        setInterval(updateUA, 1000);
     </script>
 </body>
 </html>
