@@ -111,9 +111,15 @@
 
         function formatValue(value) {
             if (value === undefined) return "<i>(undefined)</i>";
-            if (typeof value === "object") {
-                return JSON.stringify(value).replace(/"/g, "");
+
+            if (typeof value === "string") {
+                return value;
             }
+
+            if (typeof value === "object") {
+                return JSON.stringify(value);
+            }
+
             return value;
         }
 
