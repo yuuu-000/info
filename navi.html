@@ -111,7 +111,7 @@
             return value;
         }
 
-        async function updateUA() {
+       async function updateUA() {
             let highUAData = {};
             if (navigator.userAgentData?.getHighEntropyValues) {
                 highUAData = await navigator.userAgentData.getHighEntropyValues([
@@ -144,6 +144,29 @@
                         rows[item.label] = tr.cells[1];
                     }
                     rows[item.label].innerHTML = formatValue(item.value);
+                });
+            } else {
+                // High Entropy が使えない場合
+                const uaDataKeys = [
+                    "userAgentData.architecture <strong>(highEntropy)</strong>",
+                    "userAgentData.bitness <strong>(highEntropy)</strong>",
+                    "userAgentData.model <strong>(highEntropy)</strong>",
+                    "userAgentData.platformVersion <strong>(highEntropy)</strong>",
+                    "userAgentData.uaFullVersion <strong>(highEntropy)</strong>",
+                    "userAgentData.fullVersionList <strong>(highEntropy)</strong>",
+                    "userAgentData.formFactors <strong>(highEntropy)</strong>",
+                    "userAgentData.wow64 <strong>(highEntropy)</strong>"
+                ];
+
+                uaDataKeys.forEach(label => {
+                    if (!rows[label]) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `<td>${label}</td><td><i>(High Entropy 未対応)</i></td>`;
+                        tbody.appendChild(tr);
+                        rows[label] = tr.cells[1];
+                    } else {
+                        rows[label].innerHTML = "<i>(High Entropy 未対応)</i>";
+                    }
                 });
             }
 
