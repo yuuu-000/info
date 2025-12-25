@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UserAgent Info</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1e1e1e;
+            color: #f5f5f5;
+            padding: 12px;
+        }
+
+        h2 {
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        #time {
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+
+        table {
+            table-layout: fixed;
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        th,
+        td {
+            border: 1px solid #444;
+            padding: 2px 4px;
+            vertical-align: top;
+            line-height: 1.2;
+        }
+
+        th:first-child,
+        td:first-child {
+            width: 330px;
+            word-wrap: break-word;
+        }
+
+        th {
+            background: #333;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background: #2a2a2a;
+        }
+
+        tr:nth-child(odd) {
+            background: #242424;
+        }
+
+        i {
+            color: #bbb;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Navigator / UserAgentData</h2>
+    <div id="time">Loading...</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody id="ua-table"></tbody>
+    </table>
+
+    <script>
+        const tbody = document.getElementById("ua-table");
+
+        const keys = [
+            { label: "userAgent", getValue: () => navigator.userAgent },
+            { label: "appVersion", getValue: () => navigator.appVersion },
+            { label: "platform", getValue: () => navigator.platform },
+            { label: "appName", getValue: () => navigator.appName },
+            { label: "appCodeName", getValue: () => navigator.appCodeName },
+            { label: "product", getValue: () => navigator.product },
+            { label: "productSub", getValue: () => navigator.productSub },
+            { label: "vendor", getValue: () => navigator.vendor },
+            { label: "vendorSub", getValue: () => navigator.vendorSub },
+            { label: "oscpu", getValue: () => navigator.oscpu },
+            { label: "buildID", getValue: () => navigator.buildID },
+            { label: "userAgentData.brands", getValue: () => navigator.userAgentData?.brands },
+            { label: "userAgentData.mobile", getValue: () => navigator.userAgentData?.mobile },
+            { label: "userAgentData.platform", getValue: () => navigator.userAgentData?.platform }
+        ];
+
+        const rows = {};
+        keys.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${item.label}</td><td><i>(undefined)</i></td>`;
+            tbody.appendChild(tr);
+            rows[item.label] = tr.cells[1];
+        });
+
+        function formatValue(value) {
+            if (value === undefined) return "<i>(undefined)</i>";
+            if (typeof value === "object") {
+                return JSON.stringify(value).replace(/"/g, "");
+            }
+            return value;
+        }
+
+        async function updateUA() {
+            let highUAData = {};
+            if (navigator.userAgentData?.getHighEntropyValues) {
+                highUAData = await navigator.userAgentData.getHighEntropyValues([
+                    "architecture",
+                    "bitness",
+                    "model",
+                    "platformVersion",
+                    "uaFullVersion",
+                    "fullVersionList",
+                    "formFactors",
+                    "wow64"
+                ]);
+
+                const uaDataKeys = [
+                    { label: "userAgentData.architecture <strong>(highEntropy)</strong>", value: highUAData.architecture },
+                    { label: "userAgentData.bitness <strong>(highEntropy)</strong>", value: highUAData.bitness },
+                    { label: "userAgentData.model <strong>(highEntropy)</strong>", value: highUAData.model },
+                    { label: "userAgentData.platformVersion <strong>(highEntropy)</strong>", value: highUAData.platformVersion },
+                    { label: "userAgentData.uaFullVersion <strong>(highEntropy)</strong>", value: highUAData.uaFullVersion },
+                    { label: "userAgentData.fullVersionList <strong>(highEntropy)</strong>", value: highUAData.fullVersionList },
+                    { label: "userAgentData.formFactors <strong>(highEntropy)</strong>", value: highUAData.formFactors },
+                    { label: "userAgentData.wow64 <strong>(highEntropy)</strong>", value: highUAData.wow64 }
+                ];
+
+                uaDataKeys.forEach(item => {
+                    if (!rows[item.label]) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `<td>${item.label}</td><td><i>(undefined)</i></td>`;
+                        tbody.appendChild(tr);
+                        rows[item.label] = tr.cells[1];
+                    }
+                    rows[item.label].innerHTML = formatValue(item.value);
+                });
+            }
+
+            keys.forEach(item => {
+                const value = item.getValue();
+                rows[item.label].innerHTML = formatValue(value);
+            });
+
+            const now = new Date();
+            const timeStr = now.getFullYear() + "-" +
+                ("0" + (now.getMonth() + 1)).slice(-2) + "-" +
+                ("0" + now.getDate()).slice(-2) + " (" +
+                ["日", "月", "火", "水", "木", "金", "土"][now.getDay()] + ") " +
+                ("0" + now.getHours()).slice(-2) + ":" +
+                ("0" + now.getMinutes()).slice(-2) + ":" +
+                ("0" + now.getSeconds()).slice(-2) + "." +
+                ("00" + now.getMilliseconds()).slice(-3);
+
+            document.getElementById("time").textContent = "更新時刻: " + timeStr;
+        }
+
+        updateUA();
+        setInterval(updateUA, 1500);
+    </script>
+</body>
+</html>
