@@ -1,257 +1,196 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UserAgent Info</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #1e1e1e;
-            color: #f5f5f5;
-            padding: 12px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UserAgent Info</title>
 
-        h2 {
-            font-size: 13px;
-            margin-bottom: 10px;
-        }
+<style>
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #1e1e1e;
+    color: #f5f5f5;
+    padding: 16px;
+}
 
-        #time {
-            font-size: 13px;
-            margin-bottom: 25px;
-        }
+h2 {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
 
-        table {
-            table-layout: fixed;
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 12px;
-        }
+#time {
+    font-size: 13px;
+    margin-bottom: 22px;
+}
 
-        th,
-        td {
-            border: 1px solid #444;
-            padding: 3px 6px;
-            vertical-align: top;
-        }
+table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+}
 
-        th:first-child,
-        td:first-child {
-            width: 330px;
-            word-wrap: break-word;
-        }
+th, td {
+    border: 1px solid #444;
+    padding: 8px 10px;
+    vertical-align: top;
+    word-break: break-word;
+}
 
-        th:not(:first-child),
-        td:not(:first-child) {
-            width: calc(100% - 330px);
-            word-wrap: break-word;
-        }
+th {
+    background: #333;
+    font-weight: 600;
+}
 
-        th {
-            background: #333;
-            font-weight: 600;
-        }
+tr:nth-child(even) { background: #2a2a2a; }
+tr:nth-child(odd)  { background: #242424; }
 
-        tr:nth-child(even) {
-            background: #2a2a2a;
-        }
+i {
+    color: #bbb;
+}
 
-        tr:nth-child(odd) {
-            background: #242424;
-        }
+/* ===== モバイル ===== */
+@media (max-width: 600px) {
 
-        i {
-            color: #bbb;
-        }
+    thead {
+        display: none;
+    }
 
-        @media (max-width: 600px) {
+    table, tbody, tr {
+        display: block;
+        width: 100%;
+    }
 
-            table {
-                font-size: 12px;
-            }
+    tr {
+        margin-bottom: 14px;
+        border: 1px solid #444;
+        border-radius: 6px;
+        overflow: hidden;
+    }
 
-            thead {
-                display: none;
-            }
+    td {
+        display: block;
+        border: none;
+        padding: 10px 12px;
+    }
 
-            table,
-            tbody,
-            tr,
-            th,
-            td {
-                display: block;
-                width: 100%;
-            }
+    td.key {
+        background: #333;
+        font-weight: 600;
+        font-size: 12px;
+    }
 
-            tr {
-                margin-bottom: 10px;
-                border: 1px solid #444;
-                border-radius: 4px;
-                overflow: hidden;
-            }
-
-            td {
-                border: none;
-                border-bottom: 1px solid #333;
-                padding: 6px;
-                word-break: break-all;
-            }
-
-            td:first-child {
-                background: #333;
-                font-weight: 600;
-            }
-
-            td:last-child {
-                border-bottom: none;
-            }
-
-            /* PC用の固定幅を無効化 */
-            th:first-child,
-            td:first-child,
-            th:not(:first-child),
-            td:not(:first-child) {
-                width: auto;
-            }
-        }
-    </style>
+    td.value {
+        background: #1f1f1f;
+        border-top: 1px solid #444;
+        font-size: 12px;
+    }
+}
+</style>
 </head>
 
 <body>
-    <h2>Navigator / UserAgentData</h2>
-    <div id="time">Loading...</div>
-    <table>
-        <thead>
-            <tr>
-                <th>Key</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody id="ua-table"></tbody>
-    </table>
+<h2>Navigator / UserAgentData</h2>
+<div id="time">Loading...</div>
 
-    <script>
-        const tbody = document.getElementById("ua-table");
+<table>
+<thead>
+<tr>
+    <th>Key</th>
+    <th>Value</th>
+</tr>
+</thead>
+<tbody id="ua-table"></tbody>
+</table>
 
-        const keys = [
-            { label: "userAgent", getValue: () => navigator.userAgent },
-            { label: "appVersion", getValue: () => navigator.appVersion },
-            { label: "platform", getValue: () => navigator.platform },
-            { label: "appName", getValue: () => navigator.appName },
-            { label: "appCodeName", getValue: () => navigator.appCodeName },
-            { label: "product", getValue: () => navigator.product },
-            { label: "productSub", getValue: () => navigator.productSub },
-            { label: "vendor", getValue: () => navigator.vendor },
-            { label: "vendorSub", getValue: () => navigator.vendorSub },
-            { label: "oscpu", getValue: () => navigator.oscpu },
-            { label: "buildID", getValue: () => navigator.buildID },
-            { label: "userAgentData.brands", getValue: () => navigator.userAgentData?.brands },
-            { label: "userAgentData.mobile", getValue: () => navigator.userAgentData?.mobile },
-            { label: "userAgentData.platform", getValue: () => navigator.userAgentData?.platform }
-        ];
+<script>
+const tbody = document.getElementById("ua-table");
 
-        const rows = {};
-        keys.forEach(item => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${item.label}</td><td><i>(undefined)</i></td>`;
-            tbody.appendChild(tr);
-            rows[item.label] = tr.cells[1];
+const keys = [
+    { label: "userAgent", getValue: () => navigator.userAgent },
+    { label: "appVersion", getValue: () => navigator.appVersion },
+    { label: "platform", getValue: () => navigator.platform },
+    { label: "appName", getValue: () => navigator.appName },
+    { label: "appCodeName", getValue: () => navigator.appCodeName },
+    { label: "product", getValue: () => navigator.product },
+    { label: "productSub", getValue: () => navigator.productSub },
+    { label: "vendor", getValue: () => navigator.vendor },
+    { label: "vendorSub", getValue: () => navigator.vendorSub },
+    { label: "oscpu", getValue: () => navigator.oscpu },
+    { label: "buildID", getValue: () => navigator.buildID },
+    { label: "userAgentData.brands", getValue: () => navigator.userAgentData?.brands },
+    { label: "userAgentData.mobile", getValue: () => navigator.userAgentData?.mobile },
+    { label: "userAgentData.platform", getValue: () => navigator.userAgentData?.platform }
+];
+
+const rows = {};
+
+function formatValue(value) {
+    if (value === undefined || value === null) {
+        return "<i>(undefined)</i>";
+    }
+    if (typeof value === "string") {
+        return value === "" ? "<i>(empty)</i>" : value;
+    }
+    if (typeof value === "boolean") {
+        return `<i>(${value})</i>`;
+    }
+    if (typeof value === "object") {
+        return JSON.stringify(value);
+    }
+    return value;
+}
+
+function createRow(label) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td class="key">${label}</td>
+        <td class="value"><i>(undefined)</i></td>
+    `;
+    tbody.appendChild(tr);
+    rows[label] = tr.querySelector(".value");
+}
+
+keys.forEach(k => createRow(k.label));
+
+async function updateUA() {
+
+    if (navigator.userAgentData?.getHighEntropyValues) {
+        const high = await navigator.userAgentData.getHighEntropyValues([
+            "architecture",
+            "bitness",
+            "model",
+            "platformVersion",
+            "uaFullVersion",
+            "fullVersionList",
+            "formFactors",
+            "wow64"
+        ]);
+
+        Object.entries(high).forEach(([key, value]) => {
+            const label = `userAgentData.${key} <strong>(highEntropy)</strong>`;
+            if (!rows[label]) createRow(label);
+            rows[label].innerHTML = formatValue(value);
         });
+    }
 
-        function formatValue(value) {
-            if (value === undefined) return "<i>(undefined)</i>";
+    keys.forEach(k => {
+        rows[k.label].innerHTML = formatValue(k.getValue());
+    });
 
-            if (typeof value === "string") {
-                return value;
-            }
+    const now = new Date();
+    const t =
+        now.getFullYear() + "-" +
+        String(now.getMonth() + 1).padStart(2, "0") + "-" +
+        String(now.getDate()).padStart(2, "0") + " " +
+        String(now.getHours()).padStart(2, "0") + ":" +
+        String(now.getMinutes()).padStart(2, "0") + ":" +
+        String(now.getSeconds()).padStart(2, "0");
 
-            if (typeof value === "object") {
-                return JSON.stringify(value);
-            }
+    document.getElementById("time").textContent = "更新時刻: " + t;
+}
 
-            return value;
-        }
-
-        async function updateUA() {
-            let highUAData = {};
-            if (navigator.userAgentData?.getHighEntropyValues) {
-                highUAData = await navigator.userAgentData.getHighEntropyValues([
-                    "architecture",
-                    "bitness",
-                    "model",
-                    "platformVersion",
-                    "uaFullVersion",
-                    "fullVersionList",
-                    "formFactors",
-                    "wow64"
-                ]);
-
-                const uaDataKeys = [
-                    { label: "userAgentData.architecture <strong>(highEntropy)</strong>", value: highUAData.architecture },
-                    { label: "userAgentData.bitness <strong>(highEntropy)</strong>", value: highUAData.bitness },
-                    { label: "userAgentData.model <strong>(highEntropy)</strong>", value: highUAData.model },
-                    { label: "userAgentData.platformVersion <strong>(highEntropy)</strong>", value: highUAData.platformVersion },
-                    { label: "userAgentData.uaFullVersion <strong>(highEntropy)</strong>", value: highUAData.uaFullVersion },
-                    { label: "userAgentData.fullVersionList <strong>(highEntropy)</strong>", value: highUAData.fullVersionList },
-                    { label: "userAgentData.formFactors <strong>(highEntropy)</strong>", value: highUAData.formFactors },
-                    { label: "userAgentData.wow64 <strong>(highEntropy)</strong>", value: highUAData.wow64 }
-                ];
-
-                uaDataKeys.forEach(item => {
-                    if (!rows[item.label]) {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `<td>${item.label}</td><td><i>(undefined)</i></td>`;
-                        tbody.appendChild(tr);
-                        rows[item.label] = tr.cells[1];
-                    }
-                    rows[item.label].innerHTML = formatValue(item.value);
-                });
-            } else {
-                // High Entropy が使えない場合
-                const uaDataKeys = [
-                    "userAgentData.architecture <strong>(highEntropy)</strong>",
-                    "userAgentData.bitness <strong>(highEntropy)</strong>",
-                    "userAgentData.model <strong>(highEntropy)</strong>",
-                    "userAgentData.platformVersion <strong>(highEntropy)</strong>",
-                    "userAgentData.uaFullVersion <strong>(highEntropy)</strong>",
-                    "userAgentData.fullVersionList <strong>(highEntropy)</strong>",
-                    "userAgentData.formFactors <strong>(highEntropy)</strong>",
-                    "userAgentData.wow64 <strong>(highEntropy)</strong>"
-                ];
-
-                uaDataKeys.forEach(label => {
-                    if (!rows[label]) {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `<td>${label}</td><td><i>(High Entropy 未対応)</i></td>`;
-                        tbody.appendChild(tr);
-                        rows[label] = tr.cells[1];
-                    } else {
-                        rows[label].innerHTML = "<i>(High Entropy 未対応)</i>";
-                    }
-                });
-            }
-
-            keys.forEach(item => {
-                const value = item.getValue();
-                rows[item.label].innerHTML = formatValue(value);
-            });
-
-            const now = new Date();
-            const timeStr = now.getFullYear() + "-" +
-                ("0" + (now.getMonth() + 1)).slice(-2) + "-" +
-                ("0" + now.getDate()).slice(-2) + " (" +
-                ["日", "月", "火", "水", "木", "金", "土"][now.getDay()] + ") " +
-                ("0" + now.getHours()).slice(-2) + ":" +
-                ("0" + now.getMinutes()).slice(-2) + ":" +
-                ("0" + now.getSeconds()).slice(-2) + "." +
-                ("00" + now.getMilliseconds()).slice(-3);
-
-            document.getElementById("time").textContent = "更新時刻: " + timeStr;
-        }
-
-        updateUA();
-        setInterval(updateUA, 1000);
-    </script>
+updateUA();
+setInterval(updateUA, 1000);
+</script>
 </body>
 </html>
