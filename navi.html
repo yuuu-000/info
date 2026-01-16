@@ -154,35 +154,28 @@ keys.forEach(k => createRow(k.label));
 
 async function updateUA() {
 
-    if (navigator.userAgentData?.getHighEntropyValues) {
-        const high = await navigator.userAgentData.getHighEntropyValues([
-            "architecture",
-            "bitness",
-            "model",
-            "platformVersion",
-            "uaFullVersion",
-            "fullVersionList",
-            "formFactors",
-            "wow64"
-        ]);
+    const highKeys = [
+        "architecture",
+        "bitness",
+        "model",
+        "platformVersion",
+        "uaFullVersion",
+        "fullVersionList",
+        "formFactors",
+        "wow64"
+    ];
 
-        Object.entries(high).forEach(([key, value]) => {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+        const high = await navigator.userAgentData.getHighEntropyValues(highKeys);
+
+        highKeys.forEach(key => {
             const label = `userAgentData.${key} <strong>(highEntropy)</strong>`;
             if (!rows[label]) createRow(label);
-            rows[label].innerHTML = formatValue(value);
+            rows[label].innerHTML = formatValue(high[key]); // undefined も (undefined) に
         });
 
     } else {
-        [
-            "architecture",
-            "bitness",
-            "model",
-            "platformVersion",
-            "uaFullVersion",
-            "fullVersionList",
-            "formFactors",
-            "wow64"
-        ].forEach(key => {
+        highKeys.forEach(key => {
             const label = `userAgentData.${key} <strong>(highEntropy)</strong>`;
             if (!rows[label]) createRow(label);
             rows[label].innerHTML = "<i>(High Entropy 未対応)</i>";
