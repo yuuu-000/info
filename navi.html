@@ -171,6 +171,22 @@ async function updateUA() {
             if (!rows[label]) createRow(label);
             rows[label].innerHTML = formatValue(value);
         });
+
+    } else {
+        [
+            "architecture",
+            "bitness",
+            "model",
+            "platformVersion",
+            "uaFullVersion",
+            "fullVersionList",
+            "formFactors",
+            "wow64"
+        ].forEach(key => {
+            const label = `userAgentData.${key} <strong>(highEntropy)</strong>`;
+            if (!rows[label]) createRow(label);
+            rows[label].innerHTML = "<i>(High Entropy 未対応)</i>";
+        });
     }
 
     keys.forEach(k => {
