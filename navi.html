@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UserAgent Info</title>
+
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -16,7 +17,7 @@
 
         ::selection {
             background-color: transparent;
-            color: #fd5;
+            color: #f93;
         }
 
         ::-webkit-scrollbar {
@@ -30,13 +31,43 @@
         }
 
         h2 {
-            font-size: 17px;
-            margin-bottom: 10px;
+            font-size: 22px;
+            margin-bottom: 8px;
+            text-align: center;
         }
 
         #time {
+            font-size: 13px;
+            margin-bottom: 15px;
+            color: #bbb;
+            text-align: center;
+        }
+
+        .legend {
             font-size: 12px;
-            margin-bottom: 25px;
+            color: #eee;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        #savePng {
+            display: block;
+            margin: 0 auto 15px auto;
+            padding: 6px 14px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #333;
+            color: #f5f5f5;
+            cursor: pointer;
+        }
+
+        #savePng:hover {
+            background: #444;
         }
 
         table {
@@ -84,38 +115,47 @@
             tbody,
             tr {
                 display: block;
-                border-radius: 0;
             }
 
             tr {
-                margin-bottom: 13px;
+                margin-bottom: 12px;
                 border: 1.5px solid #555;
-                border-radius: 10px;
+                border-radius: 12px;
                 overflow: hidden;
             }
 
             td {
                 display: block;
                 border: none;
+                background: #1a1a1a;
             }
 
             td.key {
-                background: #444;
-                font-size: 12px;
-                padding: 5px 10px;
+                color: #f93;
+                font-size: 11px;
+                padding: 8px 10px 3px 10px;
             }
 
             td.value {
-                background: #1a1a1a;
-                font-size: 13px;
-                padding: 7px 10px;
+                font-size: 15px;
+                padding: 3px 10px 8px 10px;
             }
         }
     </style>
 </head>
 <body>
+
     <h2>Navigator / UserAgentData</h2>
     <div id="time">Loading...</div>
+
+    <div class="legend">
+        <i>(undefined)</i> : 値が存在しない / ブラウザ未対応<br>
+        <i>(empty)</i> : 空文字列<br>
+        <i>(true)</i> : boolでのtrue<br>
+        <i>(false)</i> : boolでのfalse
+    </div>
+
+    <button id="savePng">PNGで保存</button>
 
     <table>
         <thead>
@@ -126,6 +166,8 @@
         </thead>
         <tbody id="ua-table"></tbody>
     </table>
+
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <script>
         const tbody = document.getElementById("ua-table");
@@ -198,7 +240,6 @@
                     if (!rows[label]) createRow(label);
                     rows[label].innerHTML = formatValue(high[key]);
                 });
-
             } else {
                 highKeys.forEach(key => {
                     const label = `userAgentData.${key} <strong>(highEntropy)</strong>`;
@@ -225,6 +266,23 @@
 
         updateUA();
         setInterval(updateUA, 1000);
+
+        const savePng = document.getElementById("savePng");
+        savePng.addEventListener("click", () => {
+            savePng.style.display = "none";
+            html2canvas(document.body, {
+                backgroundColor: "#1f1f1f",
+                scale: window.devicePixelRatio
+            }).then(canvas => {
+                const link = document.createElement("a");
+                const name = "userAgentInfo.png";
+                link.download = name;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }).finally(() => {
+                savePng.style.display = "";
+            });
+        });
     </script>
 </body>
 </html>
