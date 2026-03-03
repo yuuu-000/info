@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UserAgent Info</title>
-
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -45,10 +44,10 @@
 
         .legend {
             font-size: 12px;
-            color: #eee;
+            color: #f5f5f5;
             background: #2a2a2a;
-            border: 1px solid #555;
-            border-radius: 8px;
+            border: 1.5px solid #555;
+            border-radius: 15px;
             padding: 10px;
             margin-bottom: 15px;
             line-height: 1.6;
@@ -57,10 +56,10 @@
         #savePng {
             display: block;
             margin: 0 auto 15px auto;
-            padding: 6px 14px;
+            padding: 6px 15px;
             font-size: 13px;
-            border-radius: 6px;
-            border: 1px solid #555;
+            border-radius: 10px;
+            border: 1.5px solid #555;
             background: #333;
             color: #f5f5f5;
             cursor: pointer;
@@ -71,11 +70,28 @@
         }
 
         table {
-            border-collapse: collapse;
             width: 100%;
             font-size: 12px;
-            border-radius: 10px;
+            border-radius: 15px;
             overflow: hidden;
+            border: 1px solid #555;
+            border-spacing: 0;
+        }
+
+        table tr th:first-child {
+            border-radius: 13.8px 0 0 0;
+        }
+
+        table tr th:last-child {
+            border-radius: 0 13.8px 0 0;
+        }
+
+        table tr:last-child td:last-child {
+            border-radius: 0 0 13.8px 0;
+        }
+
+        table tr:last-child td:first-child {
+            border-radius: 0 0 0 13.8px;
         }
 
         th,
@@ -107,6 +123,11 @@
                 padding: 5px 20px;
             }
 
+            table {
+                border: none;
+                border-radius: 0;
+            }
+
             thead {
                 display: none;
             }
@@ -132,7 +153,7 @@
 
             td.key {
                 color: #f93;
-                font-size: 11px;
+                font-size: 12px;
                 padding: 8px 10px 3px 10px;
             }
 
@@ -144,18 +165,21 @@
     </style>
 </head>
 <body>
-
     <h2>Navigator / UserAgentData</h2>
     <div id="time">Loading...</div>
+    <button id="savePng">PNGで保存</button>
 
     <div class="legend">
-        <i>(undefined)</i> : 値が存在しない / ブラウザ未対応<br>
-        <i>(empty)</i> : 空文字列<br>
-        <i>(true)</i> : boolでのtrue<br>
-        <i>(false)</i> : boolでのfalse
+        普通の文字 ... string<br>
+        <i>(undefined)</i> ... undefined　(値が存在しない / ブラウザ未対応)<br>
+        <i>(null)</i> ... null<br>
+        <i>(empty)</i> ... 空文字列 (string)<br>
+        <i>(true)</i> ... boolean値 true<br>
+        <i>(false)</i> ... boolean値 false<br>
+        <i>(何らかの数値)</i> ... number<br>
+        <i>italicでの[]</i> ... array (中身: {}で囲まれたのはobject, ""で囲まれたのはstring, 数値はnumber, true/falseはboolean, null/undefinedはnull/undefined)<br>
+        <i>italicでの{}</i> ... object (中身: 同上)
     </div>
-
-    <button id="savePng">PNGで保存</button>
 
     <table>
         <thead>
@@ -168,7 +192,6 @@
     </table>
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
     <script>
         const tbody = document.getElementById("ua-table");
 
@@ -192,8 +215,11 @@
         const rows = {};
 
         function formatValue(value) {
-            if (value === undefined || value === null) {
+            if (value === undefined) {
                 return "<i>(undefined)</i>";
+            }
+            if (value === null) {
+                return "<i>(null)</i>";
             }
             if (typeof value === "string") {
                 return value === "" ? "<i>(empty)</i>" : value;
@@ -202,7 +228,7 @@
                 return `<i>(${value})</i>`;
             }
             if (typeof value === "object") {
-                return JSON.stringify(value);
+                return `<i>${JSON.stringify(value)}</i>`;
             }
             return value;
         }
@@ -210,9 +236,9 @@
         function createRow(label) {
             const tr = document.createElement("tr");
             tr.innerHTML = `
-        <td class="key">${label}</td>
-        <td class="value"><i>(undefined)</i></td>
-    `;
+                <td class="key">${label}</td>
+                <td class="value"><i>(undefined)</i></td>
+            `;
             tbody.appendChild(tr);
             rows[label] = tr.querySelector(".value");
         }
@@ -220,7 +246,6 @@
         keys.forEach(k => createRow(k.label));
 
         async function updateUA() {
-
             const highKeys = [
                 "architecture",
                 "bitness",
