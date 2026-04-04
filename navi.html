@@ -170,15 +170,18 @@
     <button id="savePng">PNGで保存</button>
 
     <div class="legend">
-        普通の文字 ... string<br>
-        <i>undefined</i> ... undefined　(値が存在しない / ブラウザ未対応)<br>
-        <i>null</i> ... null<br>
-        <i>empty</i> ... 空文字列 (string)<br>
-        <i>true</i> ... boolean値 true<br>
-        <i>false</i> ... boolean値 false<br>
-        <i>何らかの数値</i> ... number<br>
-        <i>italicでの[]</i> ... array (中身: {}で囲まれたのはobject, ""で囲まれたのはstring, 数値はnumber, true/falseはboolean, null/undefinedはnull/undefined)<br>
-        <i>italicでの{}</i> ... object (中身: 同上)
+        <ul>
+            <li> 白色文字 ... string
+            <li><i>undefined</i> ... undefined　(値 / Valueが存在しない)
+            <li><i>null</i> ... null
+            <li><i>empty</i> ... 空文字列 (string)
+            <li><i>true</i> ... boolean値 true
+            <li><i>false</i> ... boolean値 false
+            <li><i>何らかの数値</i> ... number
+            <li><i>italicでの[]</i> ... array (中身: {}で囲まれたのはobject, ""で囲まれたのはstring, 数値はnumber, true/falseはboolean, null/undefinedはnull/undefined)
+            <li><i>italicでの{}</i> ... object (中身: 同上)
+            <li><i>未対応</i> ... keyそのものが存在しない (undefinedとは別)
+        </ul>
     </div>
 
     <table>
@@ -207,12 +210,25 @@
             { label: "vendorSub", getValue: () => navigator.vendorSub },
             { label: "oscpu", getValue: () => navigator.oscpu },
             { label: "buildID", getValue: () => navigator.buildID },
-            { label: "userAgentData.brands", getValue: () => navigator.userAgentData?.brands },
-            { label: "userAgentData.mobile", getValue: () => navigator.userAgentData?.mobile },
-            { label: "userAgentData.platform", getValue: () => navigator.userAgentData?.platform }
+            { label: "userAgentData", getValue: () => uaData("") },
+            { label: "userAgentData.brands", getValue: () => uaData("brands") },
+            { label: "userAgentData.mobile", getValue: () => uaData("mobile") },
+            { label: "userAgentData.platform", getValue: () => uaData("platform") }
         ];
 
         const rows = {};
+
+        function uaData(key) {
+            if ("userAgentData" in navigator) {
+                if (!key) {
+                    return navigator.userAgentData;
+                } else {
+                    return navigator.userAgentData[key];
+                }
+            } else {
+                return "<i>userAgentData 未対応</i>";
+            }
+        }
 
         function formatValue(value) {
             if (value === undefined) {
@@ -249,16 +265,7 @@
         keys.forEach(k => createRow(k.label));
 
         async function updateUA() {
-            const highKeys = [
-                "architecture",
-                "bitness",
-                "model",
-                "platformVersion",
-                "uaFullVersion",
-                "fullVersionList",
-                "formFactors",
-                "wow64"
-            ];
+            const highKeys = [ "architecture", "bitness", "model", "platformVersion", "uaFullVersion", "fullVersionList", "formFactors", "wow64" ];
 
             if (navigator.userAgentData?.getHighEntropyValues) {
                 const high = await navigator.userAgentData.getHighEntropyValues(highKeys);
